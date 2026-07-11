@@ -1,5 +1,8 @@
 {
   "name": "hwaseong-heatfeel-miniapp",
   "private": true,
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "dependencies": {
+    "@vercel/blob": "^2.6.1"
+  }
 }

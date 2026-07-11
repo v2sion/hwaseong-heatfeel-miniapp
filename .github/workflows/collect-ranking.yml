@@ -1,0 +1,27 @@
+name: Collect nationwide heat-feel ranking
+
+on:
+  schedule:
+    - cron: "5 * * * *" # 매시 5분에 실행 (전국 250개 시군구 체감온도 재수집)
+  workflow_dispatch: {} # 수동 실행 버튼으로도 테스트 가능
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect all chunks (rate-limit 준수를 위해 청크 사이 딜레이)
+        env:
+          BASE_URL: ${{ secrets.APP_BASE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -e
+          TOTAL=5
+          for CHUNK in $(seq 0 $((TOTAL - 1))); do
+            echo "=== chunk $CHUNK / $TOTAL ==="
+            curl -sf -X POST "$BASE_URL/api/collect?chunk=$CHUNK&total=$TOTAL" \
+              -H "Authorization: Bearer $CRON_SECRET"
+            echo
+            if [ "$CHUNK" -lt $((TOTAL - 1)) ]; then
+              sleep 65
+            fi
+          done
