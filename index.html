@@ -556,7 +556,7 @@
 
         <div class="cta-wrap">
           <button class="primary-btn" onclick="goToScreen(2)">우리 동네 순위 자세히 보기 →</button>
-          <div class="helper">전국 시/군/구, 화성시 내 동 단위까지 비교해보세요</div>
+          <div class="helper">전국 시/군/구, <span id="s1-helper-region">화성시</span> 내 동 단위까지 비교해보세요</div>
           <div class="helper" style="margin-top:4px;">Powered by OpenWeatherMap</div>
         </div>
       </div>
@@ -583,7 +583,7 @@
 
         <!-- 동 단위: 화성시 내 동 리스트 -->
         <div class="rank-panel" id="panel-dong">
-          <div class="section-title">화성시 동별 체감온도 <small>평균 <span id="hs-avg-temp-label"></span>° 대비</small></div>
+          <div class="section-title"><span id="s2-dong-title-region">화성시</span> 동별 체감온도 <small>평균 <span id="hs-avg-temp-label"></span>° 대비</small></div>
           <div id="dong-list"></div>
         </div>
 
@@ -650,6 +650,8 @@
 const MOCK_REGION_NAME        = "화성시";              // 화면 표시용 (뱃지/후킹카피/공유카드)
 const MOCK_REGION_MATCH_NAME  = "화성시동탄구";        // /api/ranking 응답에서 내 지역을 찾을 때 쓰는 실제 행정구역명
 const MOCK_MY_CITY_CODE       = "41597";               // 화성시동탄구 시군구 코드 (/api/dong-ranking 조회용)
+const MOCK_MY_DONG_NAME       = "동탄4동";             // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
+const MOCK_COORD              = { lat: 37.2002, lon: 127.0730 }; // 동탄 좌표, 위치 연동 실패 시 폴백
 const MOCK_FEELS_LIKE_TEMP    = 34;                     // 체감온도 (°C) - /api/weather 연동 실패 시 폴백
 const MOCK_TOTAL_REGIONS      = 256;                    // 전국 시군구 총 개수 (2026-07 기준)
 const MOCK_RANK_PERCENT       = 7;                       // 상위 % (더울수록 상위)
@@ -680,23 +682,27 @@ const MOCK_DONG_RANKING = [
   { rank: 6, name: "서신면",  temp: 32.0, isMe:false }
 ];
 
-// 1단계 검증용 실좌표 (동탄) — 실제 위치 API 연동 전까지 고정 좌표로 /api/weather 호출
-const DONGTAN_COORD = { lat: 37.2002, lon: 127.0730 };
+// 실제 위치(navigator.geolocation + /api/nearest-region) 연동 성공 시 교체되는 "내 위치" 상태.
+// 실패/거부/미지원 시 MOCK 값(화성시/동탄)을 그대로 사용한다 - resolveMyLocation() 참고.
+let currentCoord = { ...MOCK_COORD };
+let currentRegionName = MOCK_REGION_NAME;             // 화면 표시용 지역명
+let currentRegionMatchName = MOCK_REGION_MATCH_NAME;  // /api/ranking에서 내 지역을 찾을 때 쓰는 실제 행정구역명
+let currentCityCode = MOCK_MY_CITY_CODE;              // /api/dong-ranking 조회용 시군구 코드
+let currentMyDongName = MOCK_MY_DONG_NAME;            // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
 
 // 화면1/3에서 실제로 표시할 체감온도. /api/weather 연동 성공 시 실데이터로 교체되고,
 // 실패(로컬에서 vercel dev 없이 index.html만 열람 등) 시 MOCK 값을 그대로 사용한다.
 let currentFeelsLike = MOCK_FEELS_LIKE_TEMP;
 let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
 
-// /api/ranking(전국 250개 시군구, 시간당 갱신) 연동 성공 시 교체되는 순위 관련 값들.
+// /api/ranking(전국 256개 시군구, 시간당 갱신) 연동 성공 시 교체되는 순위 관련 값들.
 // 실패 시 MOCK 값을 그대로 사용한다.
 let currentTotalRegions = MOCK_TOTAL_REGIONS;
 let currentRankPercent = MOCK_RANK_PERCENT;
 let currentCityRank = MOCK_CITY_RANK;
 let currentCityRanking = MOCK_CITY_RANKING;
 
-// /api/dong-ranking(화성시 29개 읍면동, 시간당 갱신) 연동 성공 시 교체되는 값들.
-const MOCK_MY_DONG_NAME = "동탄4동"; // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
+// /api/dong-ranking(내 시군구의 읍면동, 시간당 갱신) 연동 성공 시 교체되는 값들.
 let currentHsAverageTemp = MOCK_HS_AVERAGE_TEMP;
 let currentDongRanking = MOCK_DONG_RANKING;
 
@@ -752,7 +758,7 @@ function getHookCopyLines(regionName, feelsLikeTemp){
   return template.map(line => line.replace('{region}', regionName));
 }
 
-let currentHookCopyLines = getHookCopyLines(MOCK_REGION_NAME, MOCK_FEELS_LIKE_TEMP);
+let currentHookCopyLines = getHookCopyLines(currentRegionName, MOCK_FEELS_LIKE_TEMP);
 
 /* ============================================================
    RENDER
@@ -761,13 +767,14 @@ function fmtTemp(t){ return t.toFixed(1).replace(/\.0$/, ""); }
 
 function renderScreen1(){
   document.getElementById('s1-rank-badge-text').textContent =
-    `${MOCK_REGION_NAME}, 오늘 전국 ${currentTotalRegions}개 시군구 중 상위 ${currentRankPercent}%`;
+    `${currentRegionName}, 오늘 전국 ${currentTotalRegions}개 시군구 중 상위 ${currentRankPercent}%`;
   document.getElementById('s1-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s1-sub').textContent = `기상청 동네예보 기준 · ${currentUpdatedLabel}`;
+  document.getElementById('s1-helper-region').textContent = currentRegionName;
   document.getElementById('s1-hook-copy').innerHTML =
     currentHookCopyLines.map((line,i)=>{
       // 첫 줄의 지역명만 강조
-      return i===0 ? line.replace(MOCK_REGION_NAME, `<span class="accent">${MOCK_REGION_NAME}</span>`) : line;
+      return i===0 ? line.replace(currentRegionName, `<span class="accent">${currentRegionName}</span>`) : line;
     }).join('<br/>');
 }
 
@@ -792,6 +799,7 @@ function renderCityBarList(){
 }
 
 function renderDongList(){
+  document.getElementById('s2-dong-title-region').textContent = currentRegionName;
   document.getElementById('hs-avg-temp-label').textContent = fmtTemp(currentHsAverageTemp);
   const wrap = document.getElementById('dong-list');
   wrap.innerHTML = currentDongRanking.map(d=>{
@@ -809,7 +817,7 @@ function renderDongList(){
         </div>
         <div class="right">
           <div class="dong-temp">${fmtTemp(d.temp)}°</div>
-          <div class="dong-diff ${diffClass}">${diffLabel} (화성시 평균 대비)</div>
+          <div class="dong-diff ${diffClass}">${diffLabel} (${currentRegionName} 평균 대비)</div>
         </div>
       </div>`;
   }).join('');
@@ -817,7 +825,7 @@ function renderDongList(){
 
 function renderScreen3(){
   document.getElementById('s3-date').textContent = currentUpdatedLabel;
-  document.getElementById('s3-region-name').textContent = MOCK_REGION_NAME;
+  document.getElementById('s3-region-name').textContent = currentRegionName;
   document.getElementById('s3-rank-badge').textContent = `상위 ${currentRankPercent}%`;
   document.getElementById('s3-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s3-rank-line').textContent =
@@ -842,7 +850,7 @@ function renderAll(){
 ============================================================ */
 async function loadRealWeather(){
   try{
-    const url = `/api/weather?lat=${DONGTAN_COORD.lat}&lon=${DONGTAN_COORD.lon}`;
+    const url = `/api/weather?lat=${currentCoord.lat}&lon=${currentCoord.lon}`;
     const res = await fetch(url);
     if(!res.ok) return;
     const data = await res.json();
@@ -851,7 +859,7 @@ async function loadRealWeather(){
     currentFeelsLike = data.feelsLike;
     const updated = new Date(data.updatedAt);
     currentUpdatedLabel = `${updated.getHours()}:${String(updated.getMinutes()).padStart(2,'0')} 기준 (실시간)`;
-    currentHookCopyLines = getHookCopyLines(MOCK_REGION_NAME, currentFeelsLike);
+    currentHookCopyLines = getHookCopyLines(currentRegionName, currentFeelsLike);
 
     renderScreen1();
     renderScreen3();
@@ -885,10 +893,10 @@ async function loadRanking(){
     const data = await res.json();
     if(!Array.isArray(data.regions) || data.regions.length === 0) return;
 
-    const mine = data.regions.find(r => r.nameKo === MOCK_REGION_MATCH_NAME);
+    const mine = data.regions.find(r => r.nameKo === currentRegionMatchName);
 
     currentTotalRegions = data.totalRegions;
-    currentCityRanking = buildCityRankingWindow(data.regions, MOCK_REGION_MATCH_NAME);
+    currentCityRanking = buildCityRankingWindow(data.regions, currentRegionMatchName);
     if(mine){
       currentRankPercent = mine.percentile;
       currentCityRank = mine.rank;
@@ -905,7 +913,7 @@ async function loadRanking(){
 
 async function loadDongRanking(){
   try{
-    const res = await fetch(`/api/dong-ranking?city=${MOCK_MY_CITY_CODE}`);
+    const res = await fetch(`/api/dong-ranking?city=${currentCityCode}`);
     if(!res.ok) return;
     const data = await res.json();
     if(!Array.isArray(data.dong) || data.dong.length === 0) return;
@@ -915,7 +923,7 @@ async function loadDongRanking(){
       rank: d.rank,
       name: d.name,
       temp: d.feelsLike,
-      isMe: d.name === MOCK_MY_DONG_NAME,
+      isMe: d.name === currentMyDongName,
     }));
 
     renderDongList();
@@ -962,7 +970,7 @@ async function saveShareCardImage(){
   try{
     const canvas = await html2canvas(card, { backgroundColor: null, scale: 2 });
     const link = document.createElement('a');
-    link.download = `오늘체감온도_${MOCK_REGION_NAME}.png`;
+    link.download = `오늘체감온도_${currentRegionName}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
     showToast('이미지가 저장되었습니다');
@@ -995,7 +1003,7 @@ function shareToKakao(){
   Kakao.Share.sendDefault({
     objectType: 'feed',
     content: {
-      title: `${MOCK_REGION_NAME} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`,
+      title: `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`,
       description: currentHookCopyLines.join(' '),
       imageUrl: `${location.origin}/logo.png`,
       link: { mobileWebUrl: location.href, webUrl: location.href },
@@ -1006,10 +1014,58 @@ function shareToKakao(){
   });
 }
 
+/* ============================================================
+   F1: 실제 위치 연동
+   - navigator.geolocation으로 좌표를 얻고, /api/nearest-region으로
+     가장 가까운 시군구/동을 찾아 currentRegionName 등을 실데이터로 교체한다.
+   - 위치 미지원/권한거부/타임아웃 등 실패 시 안내 토스트만 띄우고
+     기존 MOCK 값(화성시/동탄)을 그대로 사용 - 비기능 요구사항의
+     "위치 권한 거부 시 fallback" 처리.
+============================================================ */
+function getBrowserLocation(timeoutMs = 8000){
+  return new Promise((resolve, reject) => {
+    if(!navigator.geolocation){
+      reject(new Error('geolocation unsupported'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      err => reject(err),
+      { timeout: timeoutMs, maximumAge: 10 * 60 * 1000 }
+    );
+  });
+}
+
+async function resolveMyLocation(){
+  try{
+    const coord = await getBrowserLocation();
+    currentCoord = coord;
+
+    const res = await fetch(`/api/nearest-region?lat=${coord.lat}&lon=${coord.lon}`);
+    if(!res.ok) throw new Error('nearest-region lookup failed');
+    const data = await res.json();
+    if(!data.city) throw new Error('no matching city');
+
+    currentRegionName = data.city.nameKo;
+    currentRegionMatchName = data.city.nameKo;
+    currentCityCode = data.city.code;
+    currentMyDongName = data.dong ? data.dong.name : null;
+  }catch(err){
+    // 위치 미지원/권한거부/타임아웃 등 - 기본 지역(화성시/동탄)으로 계속 동작
+    console.warn('위치 연동 실패, 기본 지역으로 표시:', err);
+    showToast(`위치 정보를 사용할 수 없어 기본 지역(${MOCK_REGION_NAME})을 표시합니다`);
+  }
+}
+
+async function initLocationAndData(){
+  await resolveMyLocation();
+  loadRealWeather();
+  loadRanking();
+  loadDongRanking();
+}
+
 renderAll();
-loadRealWeather();
-loadRanking();
-loadDongRanking();
+initLocationAndData();
 initKakao();
 </script>
 </body>
