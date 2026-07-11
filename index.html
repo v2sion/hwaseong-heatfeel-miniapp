@@ -684,11 +684,16 @@ let currentFeelsLike = MOCK_FEELS_LIKE_TEMP;
 let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
 
 // /api/ranking(전국 250개 시군구, 시간당 갱신) 연동 성공 시 교체되는 순위 관련 값들.
-// 실패 시 MOCK 값을 그대로 사용한다. (동 단위는 다음 단계에서 실데이터로 교체 예정)
+// 실패 시 MOCK 값을 그대로 사용한다.
 let currentTotalRegions = MOCK_TOTAL_REGIONS;
 let currentRankPercent = MOCK_RANK_PERCENT;
 let currentCityRank = MOCK_CITY_RANK;
 let currentCityRanking = MOCK_CITY_RANKING;
+
+// /api/dong-ranking(화성시 29개 읍면동, 시간당 갱신) 연동 성공 시 교체되는 값들.
+const MOCK_MY_DONG_NAME = "동탄4동"; // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
+let currentHsAverageTemp = MOCK_HS_AVERAGE_TEMP;
+let currentDongRanking = MOCK_DONG_RANKING;
 
 /* ============================================================
    RENDER
@@ -728,10 +733,10 @@ function renderCityBarList(){
 }
 
 function renderDongList(){
-  document.getElementById('hs-avg-temp-label').textContent = fmtTemp(MOCK_HS_AVERAGE_TEMP);
+  document.getElementById('hs-avg-temp-label').textContent = fmtTemp(currentHsAverageTemp);
   const wrap = document.getElementById('dong-list');
-  wrap.innerHTML = MOCK_DONG_RANKING.map(d=>{
-    const diff = +(d.temp - MOCK_HS_AVERAGE_TEMP).toFixed(1);
+  wrap.innerHTML = currentDongRanking.map(d=>{
+    const diff = +(d.temp - currentHsAverageTemp).toFixed(1);
     const diffClass = diff >= 0 ? 'up' : 'down';
     const diffLabel = `${diff >= 0 ? '+' : ''}${diff}°`;
     return `
@@ -838,6 +843,28 @@ async function loadRanking(){
   }
 }
 
+async function loadDongRanking(){
+  try{
+    const res = await fetch('/api/dong-ranking');
+    if(!res.ok) return;
+    const data = await res.json();
+    if(!Array.isArray(data.dong) || data.dong.length === 0) return;
+
+    currentHsAverageTemp = data.cityAverage;
+    currentDongRanking = data.dong.map(d => ({
+      rank: d.rank,
+      name: d.name,
+      temp: d.feelsLike,
+      isMe: d.name === MOCK_MY_DONG_NAME,
+    }));
+
+    renderDongList();
+  }catch(err){
+    // 네트워크 오류 등 - mock 값으로 계속 동작
+    console.warn('동 단위 랭킹 연동 실패, mock 값 사용:', err);
+  }
+}
+
 /* ============================================================
    NAVIGATION / INTERACTION
 ============================================================ */
@@ -866,6 +893,7 @@ function mockAction(msg){
 renderAll();
 loadRealWeather();
 loadRanking();
+loadDongRanking();
 </script>
 </body>
 </html>
