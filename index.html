@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>오늘 우리동네 체감온도 - 미니앱 프로토타입</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js" crossorigin="anonymous"></script>
@@ -28,19 +28,24 @@
     --orange-100:#FFEEE2;
     --orange-050:#FFF6EF;
 
-    --ink-900:#191B22;
-    --ink-700:#33374A;
-    --ink-500:#5B6072;
-    --ink-300:#9198A8;
-    --ink-100:#E7E9EF;
+    /* Ink & 배경 — TDS 토큰 레퍼런스 기준 실제 값 */
+    --ink-900:#191F28;
+    --ink-700:#333D4B;
+    --ink-500:#4E5968;
+    --ink-300:#8B95A1;
+    --ink-200:#6B7684;
+    --ink-100:#E5E8EB;
+    --bg-gray-50:#F6F7F8;
+    --bg-gray-300:#B0B8C1;
 
     --white:#FFFFFF;
     --bg-app: linear-gradient(180deg, var(--mint-050) 0%, #FFFFFF 38%);
 
-    --radius-lg:28px;
-    --radius-md:20px;
-    --radius-sm:14px;
-    --radius-pill:999px;
+    /* Radius — TDS 토큰 레퍼런스 기준 */
+    --radius-lg:24px;   /* 카드 */
+    --radius-md:16px;   /* Bubble/중간 컴포넌트 */
+    --radius-sm:14px;   /* 소형 컴포넌트(툴팁 등) */
+    --radius-pill:999px;/* 버튼/칩/뱃지 */
 
     --shadow-card: 0 8px 24px rgba(25,27,34,0.06), 0 2px 6px rgba(25,27,34,0.04);
     --shadow-float: 0 12px 28px rgba(255,122,61,0.28);
@@ -56,14 +61,18 @@
     color:var(--ink-900);
     display:flex;
     justify-content:center;
-    min-height:100vh;
+    min-height:100dvh;
+    word-break:keep-all;
+    overflow-wrap:break-word;
   }
+  a{ color:var(--mint-700); text-decoration:none; }
+  a:hover{ color:var(--mint-500); }
 
   /* 데스크톱에서 보기 편하도록 모바일 프레임으로 감싸기 (실제 미니앱은 풀스크린 WebView) */
   .device{
     width:100%;
     max-width:430px;
-    min-height:100vh;
+    min-height:100dvh;
     background:var(--bg-app);
     position:relative;
     overflow:hidden;
@@ -100,7 +109,7 @@
     display:flex;
     align-items:center;
     gap:8px;
-    padding:18px 20px 4px;
+    padding:calc(18px + env(safe-area-inset-top)) 20px 4px;
   }
   .backbtn{
     width:36px; height:36px;
@@ -126,6 +135,7 @@
     display:inline-flex;
     align-items:center;
     gap:6px;
+    max-width:100%;
     background:var(--white);
     border:1px solid var(--mint-100);
     color:var(--mint-700);
@@ -135,10 +145,18 @@
     border-radius:var(--radius-pill);
     box-shadow:var(--shadow-card);
     margin-top:18px;
+    transition:color .3s ease, background .3s ease;
   }
   .rank-badge .dot{
     width:6px; height:6px; border-radius:50%;
     background:var(--orange-500);
+    flex-shrink:0;
+  }
+  .rank-badge span:last-child{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
 
   .temp-hero{
@@ -152,7 +170,7 @@
     margin-bottom:6px;
   }
   .temp-hero .value{
-    font-size:104px;
+    font-size:clamp(64px, 22vw, 104px);
     font-weight:800;
     line-height:1;
     letter-spacing:-4px;
@@ -244,7 +262,7 @@
     padding:11px 0;
     font-size:14px;
     font-weight:700;
-    color:var(--ink-300);
+    color:var(--ink-200);
     border-radius:var(--radius-pill);
     cursor:pointer;
     transition:all .2s;
@@ -280,19 +298,29 @@
     padding:10px 0;
   }
   .bar-row .rank-no{
-    width:26px;
+    min-width:28px;
+    flex-shrink:0;
     font-size:13px;
     font-weight:700;
     color:var(--ink-300);
     text-align:center;
+    font-variant-numeric:tabular-nums;
   }
   .bar-row.highlight .rank-no{ color:var(--orange-600); }
   .bar-row .bar-main{ flex:1; min-width:0; }
   .bar-row .bar-meta{
     display:flex;
+    align-items:center;
     justify-content:space-between;
+    gap:8px;
     font-size:13px;
     margin-bottom:5px;
+  }
+  .bar-row .bar-name-wrap{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    min-width:0;
   }
   .bar-row .bar-name{
     font-weight:600;
@@ -300,13 +328,24 @@
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
+    min-width:0;
   }
   .bar-row.highlight .bar-name{ color:var(--orange-600); font-weight:800; }
+  .bar-row .me-chip{
+    flex-shrink:0;
+    font-size:11px;
+    font-weight:700;
+    color:var(--mint-700);
+    background:var(--mint-100);
+    padding:2px 7px;
+    border-radius:var(--radius-pill);
+  }
   .bar-row .bar-temp{
     font-weight:700;
     color:var(--ink-500);
     flex-shrink:0;
     margin-left:8px;
+    font-variant-numeric:tabular-nums;
   }
   .bar-row.highlight .bar-temp{ color:var(--orange-600); }
   .bar-track{
@@ -347,14 +386,18 @@
     border-color:var(--mint-400);
     background:linear-gradient(180deg, var(--mint-050), var(--white));
   }
-  .dong-row .left{ display:flex; align-items:center; gap:12px; }
+  .dong-row .left{ display:flex; align-items:center; gap:12px; min-width:0; flex:1 1 auto; }
+  .dong-row .left > div{ min-width:0; }
   .dong-row .rank-chip{
-    width:28px; height:28px;
-    border-radius:50%;
+    min-width:28px; height:28px;
+    padding:0 7px;
+    flex-shrink:0;
+    border-radius:var(--radius-pill);
     background:var(--ink-100);
     color:var(--ink-500);
     font-size:13px;
     font-weight:700;
+    font-variant-numeric:tabular-nums;
     display:flex; align-items:center; justify-content:center;
   }
   .dong-row.highlight .rank-chip{
@@ -365,6 +408,10 @@
     font-size:15px;
     font-weight:700;
     color:var(--ink-900);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:38vw;
   }
   .dong-row .dong-badge{
     display:block;
@@ -377,16 +424,18 @@
     margin-top:4px;
     width:fit-content;
   }
-  .dong-row .right{ text-align:right; }
+  .dong-row .right{ text-align:right; flex-shrink:0; padding-left:10px; }
   .dong-row .dong-temp{
     font-size:16px;
     font-weight:800;
     color:var(--ink-900);
+    font-variant-numeric:tabular-nums;
   }
   .dong-row .dong-diff{
     font-size:12px;
     font-weight:700;
     margin-top:2px;
+    white-space:nowrap;
   }
   .dong-row .dong-diff.up{ color:var(--orange-600); }
   .dong-row .dong-diff.down{ color:var(--mint-700); }
@@ -425,27 +474,37 @@
   }
   .share-card .region-name{
     margin-top:22px;
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px;
+    row-gap:6px;
+    position:relative;
+  }
+  .share-card .region-name .name-text{
     font-size:22px;
     font-weight:800;
-    position:relative;
+    min-width:0;
+    transition:color .3s ease, background .3s ease;
   }
   .share-card .region-name .badge{
     display:inline-block;
+    flex-shrink:0;
     font-size:12px;
     font-weight:700;
     background:rgba(255,255,255,0.22);
     padding:4px 10px;
     border-radius:var(--radius-pill);
-    margin-left:8px;
     vertical-align:middle;
   }
   .share-card .big-temp{
     margin-top:8px;
-    font-size:88px;
+    font-size:clamp(52px, 19vw, 88px);
     font-weight:800;
     line-height:1;
     letter-spacing:-3px;
     position:relative;
+    font-variant-numeric:tabular-nums;
   }
   .share-card .rank-line{
     margin-top:10px;
@@ -490,14 +549,31 @@
   }
   .share-btn.save{
     background:var(--white);
-    color:var(--ink-900);
+    color:var(--ink-700);
     box-shadow:var(--shadow-card);
     border:1px solid var(--ink-100);
   }
   .share-btn.kakao{
     background:#FEE500;
     color:#3C1E1E;
+    box-shadow:0 4px 14px rgba(254,229,0,0.45);
   }
+  .share-btn.kakao:active{ transform:translateY(1px); }
+
+  .attribution{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size:11px;
+    font-weight:600;
+    color:var(--ink-300);
+  }
+  .attribution .owm-dot{
+    width:4px; height:4px; border-radius:50%;
+    background:currentColor;
+    opacity:.6;
+  }
+  a.attribution:hover{ color:var(--ink-500); text-decoration:underline; }
 
   .toast{
     position:absolute;
@@ -521,7 +597,7 @@
   .consent-overlay{
     position:absolute;
     inset:0;
-    background:rgba(25,27,34,0.45);
+    background:rgba(25,31,40,0.48);
     display:flex;
     align-items:flex-end;
     z-index:30;
@@ -534,36 +610,56 @@
     width:100%;
     background:var(--white);
     border-radius:var(--radius-lg) var(--radius-lg) 0 0;
-    padding:26px 22px 22px;
-    box-shadow:var(--shadow-card);
-    transform:translateY(12px);
-    transition:transform .2s;
+    padding:12px 22px calc(22px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 30px rgba(25,31,40,0.14);
+    transform:translateY(16px);
+    transition:transform .25s cubic-bezier(.16,1,.3,1);
   }
   .consent-overlay.show .consent-sheet{ transform:translateY(0); }
-  .consent-sheet .consent-icon{ font-size:28px; margin-bottom:10px; }
+  .consent-sheet .sheet-grabber{
+    width:36px; height:4px;
+    border-radius:var(--radius-pill);
+    background:var(--ink-100);
+    margin:0 auto 18px;
+  }
+  .consent-sheet .consent-icon{
+    width:44px; height:44px;
+    border-radius:var(--radius-pill);
+    background:var(--mint-050);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:14px;
+  }
+  .consent-sheet .consent-icon .dot{
+    width:14px; height:14px;
+    border-radius:50%;
+    background:var(--mint-700);
+    box-shadow:0 0 0 6px rgba(4,158,136,0.14);
+  }
   .consent-sheet h3{
     margin:0 0 8px;
-    font-size:17px;
+    font-size:18px;
     font-weight:800;
     color:var(--ink-900);
+    line-height:1.4;
   }
   .consent-sheet p{
-    margin:0 0 20px;
-    font-size:13.5px;
-    line-height:1.55;
+    margin:0 0 22px;
+    font-size:14px;
+    line-height:1.6;
     color:var(--ink-500);
   }
   .consent-actions{ display:flex; flex-direction:column; gap:8px; }
-  .consent-actions .primary-btn{ box-shadow:none; }
+  .consent-actions .primary-btn{ box-shadow:none; min-height:52px; font-size:16px; }
   .consent-skip{
     width:100%;
     border:none;
     background:transparent;
     color:var(--ink-300);
-    font-size:13px;
-    font-weight:600;
-    padding:12px 0 2px;
+    font-size:14px;
+    font-weight:700;
+    padding:14px 0 4px;
     cursor:pointer;
+    min-height:44px;
   }
 
   .footer-watermark{
@@ -573,6 +669,52 @@
     font-size:11px;
     color:var(--ink-300);
     font-weight:600;
+  }
+
+  /* ---------- 스켈레톤 (최초 로딩 중, mock→실데이터 전환 시 깜빡임 방지) ---------- */
+  @keyframes skeleton-shimmer{
+    0%{ background-position:200% 0; }
+    100%{ background-position:-200% 0; }
+  }
+  body.is-loading .temp-hero .value,
+  body.is-loading .rank-badge{
+    color:transparent !important;
+    -webkit-text-fill-color:transparent;
+    background-image:linear-gradient(90deg, rgba(139,149,161,0.16) 25%, rgba(139,149,161,0.32) 37%, rgba(139,149,161,0.16) 63%);
+    background-size:400% 100%;
+    -webkit-background-clip:text;
+    background-clip:text;
+    animation:skeleton-shimmer 1.4s ease-in-out infinite;
+    border-radius:8px;
+  }
+  body.is-loading #s3-region-name .name-text,
+  body.is-loading #s3-temp,
+  body.is-loading #s3-rank-line,
+  body.is-loading #s3-hook-copy,
+  body.is-loading #s3-rank-badge{
+    color:transparent !important;
+    background-image:linear-gradient(90deg, rgba(255,255,255,0.28) 25%, rgba(255,255,255,0.55) 37%, rgba(255,255,255,0.28) 63%);
+    background-size:400% 100%;
+    border-radius:8px;
+    animation:skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  #city-bar-list, #dong-list{ position:relative; }
+  #city-bar-list > *, #dong-list > *{ transition:opacity .3s ease; }
+  body.is-loading #city-bar-list, body.is-loading #dong-list{ min-height:110px; }
+  body.is-loading #city-bar-list > *, body.is-loading #dong-list > *{ opacity:0; }
+  #city-bar-list::before, #dong-list::before{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:var(--radius-md);
+    background-image:linear-gradient(90deg, rgba(139,149,161,0.12) 25%, rgba(139,149,161,0.24) 37%, rgba(139,149,161,0.12) 63%);
+    background-size:400% 100%;
+    opacity:0;
+    transition:opacity .3s ease;
+    pointer-events:none;
+  }
+  body.is-loading #city-bar-list::before, body.is-loading #dong-list::before{
+    opacity:1;
+    animation:skeleton-shimmer 1.4s ease-in-out infinite;
   }
 </style>
 </head>
@@ -606,7 +748,9 @@
         <div class="cta-wrap">
           <button class="primary-btn" onclick="goToScreen(2)">우리 동네 순위 자세히 보기 →</button>
           <div class="helper">전국 시/군/구, <span id="s1-helper-region">화성시</span> 내 동 단위까지 비교해보세요</div>
-          <div class="helper" style="margin-top:4px;">Powered by OpenWeatherMap</div>
+          <div style="text-align:center;margin-top:4px;">
+            <a class="attribution" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
+          </div>
         </div>
       </div>
     </section>
@@ -656,7 +800,7 @@
             <span id="s3-date"></span>
           </div>
           <div class="region-name">
-            <span id="s3-region-name">화성시</span>
+            <span class="name-text" id="s3-region-name">화성시</span>
             <span class="badge" id="s3-rank-badge">상위 7%</span>
           </div>
           <div class="big-temp"><span id="s3-temp">34</span>°</div>
@@ -666,12 +810,12 @@
             러닝하면 찜질방에서 뛰는 날씨!
           </div>
           <div class="hashtag" id="s3-hashtag">#오늘체감온도 #화성찜질방 #체감온도챌린지</div>
-          <div class="hashtag" style="opacity:.55; margin-top:4px;">Powered by OpenWeatherMap</div>
+          <a class="attribution" style="margin-top:4px; color:rgba(255,255,255,.75);" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
         </div>
 
         <div class="share-actions">
-          <button class="share-btn save" onclick="saveShareCardImage()">🖼 이미지 저장</button>
-          <button class="share-btn kakao" onclick="shareToKakao()">💬 카카오톡 공유</button>
+          <button class="share-btn save" onclick="saveShareCardImage()" aria-label="이미지로 저장">이미지 저장</button>
+          <button class="share-btn kakao" onclick="shareToKakao()" aria-label="카카오톡으로 공유">카카오톡 공유</button>
         </div>
 
         <div class="footer-watermark" id="s3-watermark">#오늘체감온도챌린지 · 우리동네체감온도</div>
@@ -682,12 +826,13 @@
 
     <div class="consent-overlay" id="consent-overlay">
       <div class="consent-sheet">
-        <div class="consent-icon">📍</div>
+        <div class="sheet-grabber"></div>
+        <div class="consent-icon"><span class="dot"></span></div>
         <h3>내 동네 체감온도, 위치 허용하고 볼까요?</h3>
         <p>내 위치 기준 체감온도와 전국·동네 순위를 보여드리기 위해 위치 정보를 사용해요. 위치 정보는 순위 계산에만 쓰이고 별도로 저장하지 않아요. 허용하지 않아도 기본 지역(화성시) 기준으로 이용할 수 있어요.</p>
         <div class="consent-actions">
-          <button class="primary-btn" onclick="onConsentAllow()">위치 허용하고 보기</button>
-          <button class="consent-skip" onclick="onConsentSkip()">괜찮아요, 기본 지역으로 볼게요</button>
+          <button class="primary-btn" onclick="onConsentAllow()" aria-label="위치 허용하고 보기">위치 허용하고 보기</button>
+          <button class="consent-skip" onclick="onConsentSkip()" aria-label="기본 지역으로 보기">괜찮아요, 기본 지역으로 볼게요</button>
         </div>
       </div>
     </div>
@@ -849,7 +994,10 @@ function renderCityBarList(){
         <div class="rank-no">${r.rank}</div>
         <div class="bar-main">
           <div class="bar-meta">
-            <span class="bar-name">${r.name}${r.isMe ? ' (우리 동네)' : ''}</span>
+            <span class="bar-name-wrap">
+              <span class="bar-name" title="${r.name}">${r.name}</span>
+              ${r.isMe ? '<span class="me-chip">우리 동네</span>' : ''}
+            </span>
             <span class="bar-temp">${fmtTemp(r.temp)}°</span>
           </div>
           <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
@@ -871,13 +1019,13 @@ function renderDongList(){
         <div class="left">
           <div class="rank-chip">${d.rank}</div>
           <div>
-            <div class="dong-name">${d.name}</div>
+            <div class="dong-name" title="${d.name}">${d.name}</div>
             ${d.isMe ? '<span class="dong-badge">우리 동네</span>' : ''}
           </div>
         </div>
         <div class="right">
           <div class="dong-temp">${fmtTemp(d.temp)}°</div>
-          <div class="dong-diff ${diffClass}">${diffLabel} (${currentRegionName} 평균 대비)</div>
+          <div class="dong-diff ${diffClass}">${diffLabel} 평균 대비</div>
         </div>
       </div>`;
   }).join('');
@@ -1148,24 +1296,34 @@ function setStoredConsent(value){
   catch(err){ /* 저장 실패해도 이번 세션 동작에는 지장 없음 */ }
 }
 
+function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
+// 최초 로딩(스켈레톤 표시) → mock/실데이터 중 먼저 준비되는 쪽으로 한 번에 리빌.
+// 실데이터가 늦어도 최대 1.2초 후엔 mock 값 그대로 노출(무한 스켈레톤 방지), 이후 도착하는 값은 조용히 교체.
+async function bootWithSkeleton(loaderFn){
+  document.body.classList.add('is-loading');
+  await Promise.race([loaderFn(), sleep(1200)]);
+  document.body.classList.remove('is-loading');
+}
+
 function onConsentAllow(){
   setStoredConsent('allowed');
   document.getElementById('consent-overlay').classList.remove('show');
-  initLocationAndData();
+  bootWithSkeleton(initLocationAndData);
 }
 
 function onConsentSkip(){
   setStoredConsent('skipped');
   document.getElementById('consent-overlay').classList.remove('show');
-  loadDataWithoutLocation();
+  bootWithSkeleton(loadDataWithoutLocation);
 }
 
 function startLocationFlow(){
   const consent = getStoredConsent();
   if(consent === 'allowed'){
-    initLocationAndData();
+    bootWithSkeleton(initLocationAndData);
   }else if(consent === 'skipped'){
-    loadDataWithoutLocation();
+    bootWithSkeleton(loadDataWithoutLocation);
   }else{
     document.getElementById('consent-overlay').classList.add('show');
   }
