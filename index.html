@@ -683,6 +683,13 @@ const DONGTAN_COORD = { lat: 37.2002, lon: 127.0730 };
 let currentFeelsLike = MOCK_FEELS_LIKE_TEMP;
 let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
 
+// /api/ranking(전국 250개 시군구, 시간당 갱신) 연동 성공 시 교체되는 순위 관련 값들.
+// 실패 시 MOCK 값을 그대로 사용한다. (동 단위는 다음 단계에서 실데이터로 교체 예정)
+let currentTotalRegions = MOCK_TOTAL_REGIONS;
+let currentRankPercent = MOCK_RANK_PERCENT;
+let currentCityRank = MOCK_CITY_RANK;
+let currentCityRanking = MOCK_CITY_RANKING;
+
 /* ============================================================
    RENDER
 ============================================================ */
@@ -690,7 +697,7 @@ function fmtTemp(t){ return t.toFixed(1).replace(/\.0$/, ""); }
 
 function renderScreen1(){
   document.getElementById('s1-rank-badge-text').textContent =
-    `${MOCK_REGION_NAME}, 오늘 전국 ${MOCK_TOTAL_REGIONS}개 시군구 중 상위 ${MOCK_RANK_PERCENT}%`;
+    `${MOCK_REGION_NAME}, 오늘 전국 ${currentTotalRegions}개 시군구 중 상위 ${currentRankPercent}%`;
   document.getElementById('s1-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s1-sub').textContent = `기상청 동네예보 기준 · ${currentUpdatedLabel}`;
   document.getElementById('s1-hook-copy').innerHTML =
@@ -702,8 +709,8 @@ function renderScreen1(){
 
 function renderCityBarList(){
   const wrap = document.getElementById('city-bar-list');
-  const maxTemp = Math.max(...MOCK_CITY_RANKING.filter(r=>r.temp!=null).map(r=>r.temp));
-  wrap.innerHTML = MOCK_CITY_RANKING.map(r=>{
+  const maxTemp = Math.max(...currentCityRanking.filter(r=>r.temp!=null).map(r=>r.temp));
+  wrap.innerHTML = currentCityRanking.map(r=>{
     if(r.rank === "...") return `<div class="rank-ellipsis">⋮</div>`;
     const pct = Math.max(8, Math.round((r.temp / maxTemp) * 100));
     return `
@@ -747,10 +754,10 @@ function renderDongList(){
 function renderScreen3(){
   document.getElementById('s3-date').textContent = currentUpdatedLabel;
   document.getElementById('s3-region-name').textContent = MOCK_REGION_NAME;
-  document.getElementById('s3-rank-badge').textContent = `상위 ${MOCK_RANK_PERCENT}%`;
+  document.getElementById('s3-rank-badge').textContent = `상위 ${currentRankPercent}%`;
   document.getElementById('s3-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s3-rank-line').textContent =
-    `전국 ${MOCK_TOTAL_REGIONS}개 시군구 중 ${MOCK_CITY_RANK}위`;
+    `전국 ${currentTotalRegions}개 시군구 중 ${currentCityRank}위`;
   document.getElementById('s3-hook-copy').innerHTML = MOCK_HOOK_COPY_LINES.join('<br/>');
   document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
   document.getElementById('s3-watermark').textContent = MOCK_CHALLENGE_HASHTAG;
@@ -764,10 +771,10 @@ function renderAll(){
 }
 
 /* ============================================================
-   실데이터 연동 (1단계: 동탄 좌표 1개 검증)
-   - /api/weather (서버리스 프록시)를 호출해 feels_like를 가져온다.
-   - 실패하면(로컬 정적 서버로만 열람 중이거나 API 키 미설정 등) MOCK 값을 그대로 유지.
-   - 전국 226개 시군구 + 동 단위 실데이터/순위 계산은 2·3단계에서 확장 예정.
+   실데이터 연동
+   - /api/weather: 동탄 좌표 1개의 실시간 체감온도 (화면1/3 큰 숫자)
+   - /api/ranking: 전국 250개 시군구 시간당 배치 결과 (화면1/2/3 순위·percentile)
+   - 각각 실패해도 서로 독립적으로 mock 값 폴백. 동 단위는 다음 단계에서 실데이터로 교체 예정.
 ============================================================ */
 async function loadRealWeather(){
   try{
@@ -786,6 +793,48 @@ async function loadRealWeather(){
   }catch(err){
     // 네트워크 오류 등 - mock 값으로 계속 동작
     console.warn('실시간 날씨 연동 실패, mock 값 사용:', err);
+  }
+}
+
+// 전체 랭킹에서 상위 3위 + (필요 시 생략 표시) + 내 지역 주변 구간만 뽑아 화면2 막대 리스트 형태로 변환
+function buildCityRankingWindow(regions, meName){
+  const toRow = (r) => ({ rank: r.rank, name: r.nameKo, temp: r.feelsLike, isMe: r.nameKo === meName });
+  const meIndex = regions.findIndex(r => r.nameKo === meName);
+  if(meIndex === -1) return regions.slice(0, 3).map(toRow);
+
+  if(regions[meIndex].rank <= 4){
+    return regions.slice(0, Math.max(4, meIndex + 1)).map(toRow);
+  }
+
+  const top3 = regions.slice(0, 3).map(toRow);
+  const windowStart = Math.max(3, meIndex - 1);
+  const windowEnd = Math.min(regions.length, meIndex + 2);
+  const nearby = regions.slice(windowStart, windowEnd).map(toRow);
+  return [...top3, { rank: '...', name: null, temp: null, isMe: false }, ...nearby];
+}
+
+async function loadRanking(){
+  try{
+    const res = await fetch('/api/ranking');
+    if(!res.ok) return;
+    const data = await res.json();
+    if(!Array.isArray(data.regions) || data.regions.length === 0) return;
+
+    const mine = data.regions.find(r => r.nameKo === MOCK_REGION_NAME);
+
+    currentTotalRegions = data.totalRegions;
+    currentCityRanking = buildCityRankingWindow(data.regions, MOCK_REGION_NAME);
+    if(mine){
+      currentRankPercent = mine.percentile;
+      currentCityRank = mine.rank;
+    }
+
+    renderScreen1();
+    renderCityBarList();
+    renderScreen3();
+  }catch(err){
+    // 네트워크 오류 등 - mock 값으로 계속 동작
+    console.warn('전국 랭킹 연동 실패, mock 값 사용:', err);
   }
 }
 
@@ -816,6 +865,7 @@ function mockAction(msg){
 
 renderAll();
 loadRealWeather();
+loadRanking();
 </script>
 </body>
 </html>
