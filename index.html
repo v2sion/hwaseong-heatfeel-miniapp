@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>오늘 우리동네 체감온도 - 미니앱 프로토타입</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+     - Deus 퀵스타트 템플릿의 카드형 스타일(둥근 모서리, 소프트 섀도우,
+       큰 넘버 히어로, 필형 탭/버튼)을 기본 골격으로 하되
+       여름 느낌(민트/오렌지)으로 팔레트만 교체.
+     - 색상/타이포는 전부 변수로 분리 -> 추후 TDS 토큰으로 치환 용이
+  ============================================================ */
+  :root{
+    --mint-700:#049E88;
+    --mint-500:#00C2A8;
+    --mint-400:#3DD9C4;
+    --mint-100:#E4FBF6;
+    --mint-050:#F1FDFA;
+
+    --orange-600:#F2600C;
+    --orange-500:#FF7A3D;
+    --orange-400:#FF9662;
+    --orange-100:#FFEEE2;
+    --orange-050:#FFF6EF;
+
+    --ink-900:#191B22;
+    --ink-700:#33374A;
+    --ink-500:#5B6072;
+    --ink-300:#9198A8;
+    --ink-100:#E7E9EF;
+
+    --white:#FFFFFF;
+    --bg-app: linear-gradient(180deg, var(--mint-050) 0%, #FFFFFF 38%);
+
+    --radius-lg:28px;
+    --radius-md:20px;
+    --radius-sm:14px;
+    --radius-pill:999px;
+
+    --shadow-card: 0 8px 24px rgba(25,27,34,0.06), 0 2px 6px rgba(25,27,34,0.04);
+    --shadow-float: 0 12px 28px rgba(255,122,61,0.28);
+
+    --font: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:var(--font);
+    background:#EDEFF3;
+    color:var(--ink-900);
+    display:flex;
+    justify-content:center;
+    min-height:100vh;
+  }
+
+  /* 데스크톱에서 보기 편하도록 모바일 프레임으로 감싸기 (실제 미니앱은 풀스크린 WebView) */
+  .device{
+    width:100%;
+    max-width:430px;
+    min-height:100vh;
+    background:var(--bg-app);
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 0 60px rgba(0,0,0,0.12);
+  }
+  @media (min-width:431px){
+    body{ padding:40px 0; }
+    .device{ min-height:844px; height:844px; border-radius:44px; }
+  }
+
+  .screens{
+    position:relative;
+    width:300%;
+    height:100%;
+    display:flex;
+    transition:transform .38s cubic-bezier(.4,0,.2,1);
+  }
+  .screen{
+    width:33.3333%;
+    height:100%;
+    overflow-y:auto;
+    -ms-overflow-style:none;
+    scrollbar-width:none;
+  }
+  .screen::-webkit-scrollbar{ display:none; }
+
+  /* 화면 이동 상태 (JS가 .screens 에 클래스 부여) */
+  .screens.at-1{ transform:translateX(0%); }
+  .screens.at-2{ transform:translateX(-33.3333%); }
+  .screens.at-3{ transform:translateX(-66.6666%); }
+
+  /* ---------- 공통 헤더 ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:18px 20px 4px;
+  }
+  .backbtn{
+    width:36px; height:36px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:var(--radius-pill);
+    background:rgba(255,255,255,0.7);
+    border:none;
+    font-size:18px;
+    color:var(--ink-700);
+    cursor:pointer;
+  }
+  .topbar .title{
+    font-size:16px;
+    font-weight:700;
+    color:var(--ink-900);
+  }
+
+  /* ================= 화면1: 메인 ================= */
+  #screen-1 .hero-wrap{
+    padding:8px 20px 28px;
+  }
+  .rank-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--white);
+    border:1px solid var(--mint-100);
+    color:var(--mint-700);
+    font-size:13px;
+    font-weight:700;
+    padding:8px 14px;
+    border-radius:var(--radius-pill);
+    box-shadow:var(--shadow-card);
+    margin-top:18px;
+  }
+  .rank-badge .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--orange-500);
+  }
+
+  .temp-hero{
+    margin-top:34px;
+    text-align:center;
+  }
+  .temp-hero .label{
+    font-size:14px;
+    color:var(--ink-500);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .temp-hero .value{
+    font-size:104px;
+    font-weight:800;
+    line-height:1;
+    letter-spacing:-4px;
+    background:linear-gradient(180deg, var(--orange-500), var(--orange-600));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .temp-hero .sub{
+    margin-top:10px;
+    font-size:13px;
+    color:var(--ink-300);
+  }
+
+  .hook-card{
+    margin-top:28px;
+    background:var(--white);
+    border-radius:var(--radius-lg);
+    padding:22px 22px 24px;
+    box-shadow:var(--shadow-card);
+    position:relative;
+    overflow:hidden;
+  }
+  .hook-card::before{
+    content:"";
+    position:absolute; right:-30px; top:-30px;
+    width:120px; height:120px; border-radius:50%;
+    background:var(--mint-100);
+    opacity:.7;
+  }
+  .hook-card .tag{
+    display:inline-block;
+    font-size:12px;
+    font-weight:700;
+    color:var(--orange-600);
+    background:var(--orange-100);
+    padding:5px 10px;
+    border-radius:var(--radius-pill);
+    margin-bottom:10px;
+    position:relative;
+  }
+  .hook-card p{
+    position:relative;
+    margin:0;
+    font-size:19px;
+    font-weight:700;
+    line-height:1.42;
+    color:var(--ink-900);
+  }
+  .hook-card p .accent{ color:var(--orange-500); }
+
+  .primary-btn{
+    width:100%;
+    border:none;
+    border-radius:var(--radius-md);
+    background:linear-gradient(135deg, var(--orange-500), var(--orange-600));
+    color:var(--white);
+    font-size:16px;
+    font-weight:700;
+    padding:18px 20px;
+    cursor:pointer;
+    box-shadow:var(--shadow-float);
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .primary-btn:active{ transform:translateY(1px); }
+  .cta-wrap{ margin-top:26px; padding-bottom:12px; }
+  .cta-wrap .helper{
+    text-align:center;
+    font-size:12px;
+    color:var(--ink-300);
+    margin-top:10px;
+  }
+
+  /* ================= 화면2: 순위 상세 ================= */
+  #screen-2 .body-wrap{ padding:6px 20px 100px; }
+
+  .toggle-tabs{
+    display:flex;
+    background:var(--white);
+    border-radius:var(--radius-pill);
+    padding:4px;
+    box-shadow:var(--shadow-card);
+    margin-top:6px;
+  }
+  .toggle-tabs button{
+    flex:1;
+    border:none;
+    background:transparent;
+    padding:11px 0;
+    font-size:14px;
+    font-weight:700;
+    color:var(--ink-300);
+    border-radius:var(--radius-pill);
+    cursor:pointer;
+    transition:all .2s;
+  }
+  .toggle-tabs button.active{
+    background:linear-gradient(135deg, var(--mint-500), var(--mint-700));
+    color:var(--white);
+  }
+
+  .section-title{
+    margin:26px 0 12px;
+    font-size:15px;
+    font-weight:700;
+    color:var(--ink-700);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .section-title small{
+    font-size:12px;
+    font-weight:500;
+    color:var(--ink-300);
+  }
+
+  .rank-panel{ display:none; }
+  .rank-panel.active{ display:block; }
+
+  /* 막대그래프 리스트 (시 단위) */
+  .bar-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 0;
+  }
+  .bar-row .rank-no{
+    width:26px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--ink-300);
+    text-align:center;
+  }
+  .bar-row.highlight .rank-no{ color:var(--orange-600); }
+  .bar-row .bar-main{ flex:1; min-width:0; }
+  .bar-row .bar-meta{
+    display:flex;
+    justify-content:space-between;
+    font-size:13px;
+    margin-bottom:5px;
+  }
+  .bar-row .bar-name{
+    font-weight:600;
+    color:var(--ink-700);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .bar-row.highlight .bar-name{ color:var(--orange-600); font-weight:800; }
+  .bar-row .bar-temp{
+    font-weight:700;
+    color:var(--ink-500);
+    flex-shrink:0;
+    margin-left:8px;
+  }
+  .bar-row.highlight .bar-temp{ color:var(--orange-600); }
+  .bar-track{
+    height:10px;
+    background:var(--ink-100);
+    border-radius:var(--radius-pill);
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    border-radius:var(--radius-pill);
+    background:linear-gradient(90deg, var(--ink-300), var(--ink-300));
+  }
+  .bar-row.highlight .bar-fill{
+    background:linear-gradient(90deg, var(--orange-400), var(--orange-600));
+  }
+  .rank-ellipsis{
+    text-align:center;
+    color:var(--ink-300);
+    font-size:13px;
+    letter-spacing:2px;
+    padding:2px 0 6px;
+  }
+
+  /* 동 리스트 (동 단위) */
+  .dong-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 16px;
+    background:var(--white);
+    border-radius:var(--radius-md);
+    margin-bottom:10px;
+    box-shadow:var(--shadow-card);
+    border:1.5px solid transparent;
+  }
+  .dong-row.highlight{
+    border-color:var(--mint-400);
+    background:linear-gradient(180deg, var(--mint-050), var(--white));
+  }
+  .dong-row .left{ display:flex; align-items:center; gap:12px; }
+  .dong-row .rank-chip{
+    width:28px; height:28px;
+    border-radius:50%;
+    background:var(--ink-100);
+    color:var(--ink-500);
+    font-size:13px;
+    font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .dong-row.highlight .rank-chip{
+    background:linear-gradient(135deg, var(--mint-500), var(--mint-700));
+    color:var(--white);
+  }
+  .dong-row .dong-name{
+    font-size:15px;
+    font-weight:700;
+    color:var(--ink-900);
+  }
+  .dong-row .dong-badge{
+    display:block;
+    font-size:11px;
+    font-weight:700;
+    color:var(--mint-700);
+    background:var(--mint-100);
+    padding:2px 7px;
+    border-radius:var(--radius-pill);
+    margin-top:4px;
+    width:fit-content;
+  }
+  .dong-row .right{ text-align:right; }
+  .dong-row .dong-temp{
+    font-size:16px;
+    font-weight:800;
+    color:var(--ink-900);
+  }
+  .dong-row .dong-diff{
+    font-size:12px;
+    font-weight:700;
+    margin-top:2px;
+  }
+  .dong-row .dong-diff.up{ color:var(--orange-600); }
+  .dong-row .dong-diff.down{ color:var(--mint-700); }
+
+  .sticky-cta{
+    position:sticky;
+    bottom:0;
+    left:0; right:0;
+    padding:14px 20px 22px;
+    background:linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 30%);
+  }
+
+  /* ================= 화면3: 공유카드 ================= */
+  #screen-3 .body-wrap{ padding:6px 20px 30px; display:flex; flex-direction:column; min-height:100%; }
+
+  .share-card{
+    margin-top:18px;
+    border-radius:var(--radius-lg);
+    padding:30px 26px 26px;
+    background:linear-gradient(160deg, var(--mint-500) 0%, var(--mint-700) 55%, var(--orange-500) 130%);
+    color:var(--white);
+    box-shadow:var(--shadow-card);
+    position:relative;
+    overflow:hidden;
+  }
+  .share-card::after{
+    content:"";
+    position:absolute; left:-40px; bottom:-60px;
+    width:180px; height:180px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+  }
+  .share-card .brand-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12px; font-weight:700; opacity:.85;
+    position:relative;
+  }
+  .share-card .region-name{
+    margin-top:22px;
+    font-size:22px;
+    font-weight:800;
+    position:relative;
+  }
+  .share-card .region-name .badge{
+    display:inline-block;
+    font-size:12px;
+    font-weight:700;
+    background:rgba(255,255,255,0.22);
+    padding:4px 10px;
+    border-radius:var(--radius-pill);
+    margin-left:8px;
+    vertical-align:middle;
+  }
+  .share-card .big-temp{
+    margin-top:8px;
+    font-size:88px;
+    font-weight:800;
+    line-height:1;
+    letter-spacing:-3px;
+    position:relative;
+  }
+  .share-card .rank-line{
+    margin-top:10px;
+    font-size:14px;
+    font-weight:700;
+    opacity:.92;
+    position:relative;
+  }
+  .share-card .hook{
+    margin-top:18px;
+    font-size:16px;
+    font-weight:700;
+    line-height:1.5;
+    background:rgba(255,255,255,0.14);
+    padding:14px 16px;
+    border-radius:var(--radius-md);
+    position:relative;
+  }
+  .share-card .hashtag{
+    margin-top:20px;
+    font-size:12px;
+    font-weight:700;
+    opacity:.8;
+    letter-spacing:.2px;
+    position:relative;
+  }
+
+  .share-actions{
+    display:flex;
+    gap:10px;
+    margin-top:22px;
+  }
+  .share-btn{
+    flex:1;
+    border:none;
+    border-radius:var(--radius-md);
+    padding:16px 10px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .share-btn.save{
+    background:var(--white);
+    color:var(--ink-900);
+    box-shadow:var(--shadow-card);
+    border:1px solid var(--ink-100);
+  }
+  .share-btn.kakao{
+    background:#FEE500;
+    color:#3C1E1E;
+  }
+
+  .toast{
+    position:absolute;
+    left:50%; bottom:110px;
+    transform:translate(-50%, 20px);
+    background:rgba(25,27,34,0.9);
+    color:#fff;
+    font-size:13px;
+    font-weight:600;
+    padding:10px 16px;
+    border-radius:var(--radius-pill);
+    opacity:0;
+    pointer-events:none;
+    transition:all .25s;
+    white-space:nowrap;
+    z-index:20;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  .footer-watermark{
+    margin-top:auto;
+    padding-top:24px;
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-300);
+    font-weight:600;
+  }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="screens at-1" id="screens">
+
+    <!-- ======================= 화면 1: 메인 ======================= -->
+    <section class="screen" id="screen-1">
+      <div class="hero-wrap">
+        <span class="rank-badge">
+          <span class="dot"></span>
+          <span id="s1-rank-badge-text">화성시, 오늘 전국 226개 시군구 중 상위 7%</span>
+        </span>
+
+        <div class="temp-hero">
+          <div class="label">지금 체감온도</div>
+          <div class="value"><span id="s1-temp">34</span>°</div>
+          <div class="sub" id="s1-sub">기상청 동네예보 기준 · 마지막 업데이트 방금 전</div>
+        </div>
+
+        <div class="hook-card">
+          <span class="tag">오늘의 체감 코멘트</span>
+          <p id="s1-hook-copy">
+            화성시, 오늘은 <span class="accent">동남아 여행</span> 갈 필요 없는<br/>
+            동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
+          </p>
+        </div>
+
+        <div class="cta-wrap">
+          <button class="primary-btn" onclick="goToScreen(2)">우리 동네 순위 자세히 보기 →</button>
+          <div class="helper">전국 시/군/구, 화성시 내 동 단위까지 비교해보세요</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 화면 2: 순위 상세 ======================= -->
+    <section class="screen" id="screen-2">
+      <div class="topbar">
+        <button class="backbtn" onclick="goToScreen(1)">←</button>
+        <span class="title">우리 동네 체감온도 순위</span>
+      </div>
+
+      <div class="body-wrap">
+        <div class="toggle-tabs">
+          <button class="active" id="tab-city" onclick="switchRankTab('city')">시 단위</button>
+          <button id="tab-dong" onclick="switchRankTab('dong')">동 단위</button>
+        </div>
+
+        <!-- 시 단위: 전국 시군구 막대그래프 -->
+        <div class="rank-panel active" id="panel-city">
+          <div class="section-title">전국 체감온도 랭킹 <small>오늘 15:00 기준</small></div>
+          <div id="city-bar-list"></div>
+        </div>
+
+        <!-- 동 단위: 화성시 내 동 리스트 -->
+        <div class="rank-panel" id="panel-dong">
+          <div class="section-title">화성시 동별 체감온도 <small>평균 <span id="hs-avg-temp-label"></span>° 대비</small></div>
+          <div id="dong-list"></div>
+        </div>
+
+        <div class="sticky-cta">
+          <button class="primary-btn" onclick="goToScreen(3)">결과 공유하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= 화면 3: 공유카드 ======================= -->
+    <section class="screen" id="screen-3">
+      <div class="topbar">
+        <button class="backbtn" onclick="goToScreen(2)">←</button>
+        <span class="title">공유하기</span>
+      </div>
+
+      <div class="body-wrap">
+        <div class="share-card">
+          <div class="brand-row">
+            <span>오늘 우리동네 체감온도</span>
+            <span id="s3-date"></span>
+          </div>
+          <div class="region-name">
+            <span id="s3-region-name">화성시</span>
+            <span class="badge" id="s3-rank-badge">상위 7%</span>
+          </div>
+          <div class="big-temp"><span id="s3-temp">34</span>°</div>
+          <div class="rank-line" id="s3-rank-line">전국 226개 시군구 중 16위</div>
+          <div class="hook" id="s3-hook-copy">
+            화성시, 오늘은 동남아 여행 갈 필요 없는 동남아 그 자체.<br/>
+            러닝하면 찜질방에서 뛰는 날씨!
+          </div>
+          <div class="hashtag" id="s3-hashtag">#오늘체감온도 #화성찜질방 #체감온도챌린지</div>
+        </div>
+
+        <div class="share-actions">
+          <button class="share-btn save" onclick="mockAction('이미지가 저장되었습니다 (mock)')">🖼 이미지 저장</button>
+          <button class="share-btn kakao" onclick="mockAction('카카오톡 공유 연동 예정 (mock)')">💬 카카오톡 공유</button>
+        </div>
+
+        <div class="footer-watermark" id="s3-watermark">#오늘체감온도챌린지 · 우리동네체감온도</div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   MOCK DATA
+   - API 연동 전까지 사용하는 하드코딩 상수.
+   - 실제 데이터 연동 시 이 블록만 fetch 결과로 교체하면 됨.
+   - 네이밍 규칙: MOCK_* / 화면별 접두사(S1_, S2_, S3_) 없이
+     공용으로 재사용 (동일 지표는 화면1/3에서 같은 값을 참조).
+============================================================ */
+
+// 공통 - 우리 동네(사용자 위치) 정보
+const MOCK_REGION_NAME        = "화성시";              // 사용자 소속 시군구명
+const MOCK_FEELS_LIKE_TEMP    = 34;                     // 체감온도 (°C) - /api/weather 연동 실패 시 폴백
+const MOCK_TOTAL_REGIONS      = 226;                    // 전국 시군구 총 개수
+const MOCK_RANK_PERCENT       = 7;                       // 상위 % (더울수록 상위)
+const MOCK_CITY_RANK          = 16;                      // 전국 체감온도 순위 (1위=가장 더움)
+const MOCK_HOOK_COPY_LINES    = [                        // 후킹 카피 (줄바꿈 단위 배열)
+  "화성시, 오늘은 동남아 여행 갈 필요 없는",
+  "동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!"
+];
+const MOCK_UPDATED_AT_LABEL   = "오늘 15:00 기준";
+const MOCK_CHALLENGE_HASHTAG  = "#오늘체감온도챌린지 · 우리동네체감온도"; // 화면3 하단 워터마크 자리
+
+// 화면2 - 시 단위: 전국 시군구 체감온도 mock 순위 (상위 3 + 화성시 인근 구간)
+// isMe: true 인 항목이 강조 표시됨
+const MOCK_CITY_RANKING = [
+  { rank: 1,  name: "포항시 남구", temp: 37.2, isMe:false },
+  { rank: 2,  name: "대구광역시 서구", temp: 36.8, isMe:false },
+  { rank: 3,  name: "문경시", temp: 36.5, isMe:false },
+  { rank: "...", name: null, temp: null, isMe:false }, // 구간 생략 표시
+  { rank: 15, name: "안성시", temp: 34.3, isMe:false },
+  { rank: 16, name: "화성시", temp: 34.0, isMe:true  },
+  { rank: 17, name: "평택시", temp: 33.9, isMe:false }
+];
+
+// 화면2 - 동 단위: 화성시 내 동/읍/면 체감온도 mock (화성시 평균 대비 비교수치 포함)
+const MOCK_HS_AVERAGE_TEMP = 32.8; // 화성시 전체 평균 체감온도 (동 리스트 비교 기준값)
+const MOCK_DONG_RANKING = [
+  { rank: 1, name: "동탄4동", temp: 34.0, isMe:true  },
+  { rank: 2, name: "동탄2동", temp: 33.5, isMe:false },
+  { rank: 3, name: "봉담읍",  temp: 33.2, isMe:false },
+  { rank: 4, name: "향남읍",  temp: 32.9, isMe:false },
+  { rank: 5, name: "남양읍",  temp: 32.5, isMe:false },
+  { rank: 6, name: "서신면",  temp: 32.0, isMe:false }
+];
+
+// 1단계 검증용 실좌표 (동탄) — 실제 위치 API 연동 전까지 고정 좌표로 /api/weather 호출
+const DONGTAN_COORD = { lat: 37.2002, lon: 127.0730 };
+
+// 화면1/3에서 실제로 표시할 체감온도. /api/weather 연동 성공 시 실데이터로 교체되고,
+// 실패(로컬에서 vercel dev 없이 index.html만 열람 등) 시 MOCK 값을 그대로 사용한다.
+let currentFeelsLike = MOCK_FEELS_LIKE_TEMP;
+let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
+
+/* ============================================================
+   RENDER
+============================================================ */
+function fmtTemp(t){ return t.toFixed(1).replace(/\.0$/, ""); }
+
+function renderScreen1(){
+  document.getElementById('s1-rank-badge-text').textContent =
+    `${MOCK_REGION_NAME}, 오늘 전국 ${MOCK_TOTAL_REGIONS}개 시군구 중 상위 ${MOCK_RANK_PERCENT}%`;
+  document.getElementById('s1-temp').textContent = fmtTemp(currentFeelsLike);
+  document.getElementById('s1-sub').textContent = `기상청 동네예보 기준 · ${currentUpdatedLabel}`;
+  document.getElementById('s1-hook-copy').innerHTML =
+    MOCK_HOOK_COPY_LINES.map((line,i)=>{
+      // 첫 줄의 지역명만 강조 (mock 연출용, 실제론 카피 룰에 맞게 조정)
+      return i===0 ? line.replace(MOCK_REGION_NAME, `<span class="accent">${MOCK_REGION_NAME}</span>`) : line;
+    }).join('<br/>');
+}
+
+function renderCityBarList(){
+  const wrap = document.getElementById('city-bar-list');
+  const maxTemp = Math.max(...MOCK_CITY_RANKING.filter(r=>r.temp!=null).map(r=>r.temp));
+  wrap.innerHTML = MOCK_CITY_RANKING.map(r=>{
+    if(r.rank === "...") return `<div class="rank-ellipsis">⋮</div>`;
+    const pct = Math.max(8, Math.round((r.temp / maxTemp) * 100));
+    return `
+      <div class="bar-row ${r.isMe ? 'highlight':''}">
+        <div class="rank-no">${r.rank}</div>
+        <div class="bar-main">
+          <div class="bar-meta">
+            <span class="bar-name">${r.name}${r.isMe ? ' (우리 동네)' : ''}</span>
+            <span class="bar-temp">${fmtTemp(r.temp)}°</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderDongList(){
+  document.getElementById('hs-avg-temp-label').textContent = fmtTemp(MOCK_HS_AVERAGE_TEMP);
+  const wrap = document.getElementById('dong-list');
+  wrap.innerHTML = MOCK_DONG_RANKING.map(d=>{
+    const diff = +(d.temp - MOCK_HS_AVERAGE_TEMP).toFixed(1);
+    const diffClass = diff >= 0 ? 'up' : 'down';
+    const diffLabel = `${diff >= 0 ? '+' : ''}${diff}°`;
+    return `
+      <div class="dong-row ${d.isMe ? 'highlight':''}">
+        <div class="left">
+          <div class="rank-chip">${d.rank}</div>
+          <div>
+            <div class="dong-name">${d.name}</div>
+            ${d.isMe ? '<span class="dong-badge">우리 동네</span>' : ''}
+          </div>
+        </div>
+        <div class="right">
+          <div class="dong-temp">${fmtTemp(d.temp)}°</div>
+          <div class="dong-diff ${diffClass}">${diffLabel} (화성시 평균 대비)</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderScreen3(){
+  document.getElementById('s3-date').textContent = currentUpdatedLabel;
+  document.getElementById('s3-region-name').textContent = MOCK_REGION_NAME;
+  document.getElementById('s3-rank-badge').textContent = `상위 ${MOCK_RANK_PERCENT}%`;
+  document.getElementById('s3-temp').textContent = fmtTemp(currentFeelsLike);
+  document.getElementById('s3-rank-line').textContent =
+    `전국 ${MOCK_TOTAL_REGIONS}개 시군구 중 ${MOCK_CITY_RANK}위`;
+  document.getElementById('s3-hook-copy').innerHTML = MOCK_HOOK_COPY_LINES.join('<br/>');
+  document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
+  document.getElementById('s3-watermark').textContent = MOCK_CHALLENGE_HASHTAG;
+}
+
+function renderAll(){
+  renderScreen1();
+  renderCityBarList();
+  renderDongList();
+  renderScreen3();
+}
+
+/* ============================================================
+   실데이터 연동 (1단계: 동탄 좌표 1개 검증)
+   - /api/weather (서버리스 프록시)를 호출해 feels_like를 가져온다.
+   - 실패하면(로컬 정적 서버로만 열람 중이거나 API 키 미설정 등) MOCK 값을 그대로 유지.
+   - 전국 226개 시군구 + 동 단위 실데이터/순위 계산은 2·3단계에서 확장 예정.
+============================================================ */
+async function loadRealWeather(){
+  try{
+    const url = `/api/weather?lat=${DONGTAN_COORD.lat}&lon=${DONGTAN_COORD.lon}`;
+    const res = await fetch(url);
+    if(!res.ok) return;
+    const data = await res.json();
+    if(typeof data.feelsLike !== 'number') return;
+
+    currentFeelsLike = data.feelsLike;
+    const updated = new Date(data.updatedAt);
+    currentUpdatedLabel = `${updated.getHours()}:${String(updated.getMinutes()).padStart(2,'0')} 기준 (실시간)`;
+
+    renderScreen1();
+    renderScreen3();
+  }catch(err){
+    // 네트워크 오류 등 - mock 값으로 계속 동작
+    console.warn('실시간 날씨 연동 실패, mock 값 사용:', err);
+  }
+}
+
+/* ============================================================
+   NAVIGATION / INTERACTION
+============================================================ */
+function goToScreen(n){
+  document.getElementById('screens').className = 'screens at-' + n;
+}
+
+function switchRankTab(which){
+  document.getElementById('tab-city').classList.toggle('active', which==='city');
+  document.getElementById('tab-dong').classList.toggle('active', which==='dong');
+  document.getElementById('panel-city').classList.toggle('active', which==='city');
+  document.getElementById('panel-dong').classList.toggle('active', which==='dong');
+}
+
+let toastTimer;
+function mockAction(msg){
+  // 실제 이미지 저장 / 카카오톡 공유 SDK 연동은 추후 작업.
+  // 지금은 버튼 존재 + 클릭 피드백(UX 확인용)만 제공.
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> toast.classList.remove('show'), 1600);
+}
+
+renderAll();
+loadRealWeather();
+</script>
+</body>
+</html>
