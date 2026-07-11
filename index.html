@@ -640,9 +640,14 @@
 ============================================================ */
 
 // 공통 - 우리 동네(사용자 위치) 정보
-const MOCK_REGION_NAME        = "화성시";              // 사용자 소속 시군구명
+// 실제 위치 API 연동 전까지 "화성시(동탄)"로 고정. 2026-02 화성시 4구 분리로 행정구역상
+// 정식 명칭은 "화성시동탄구"이므로, 화면 문구는 친숙한 MOCK_REGION_NAME("화성시")을 쓰고
+// /api/ranking·/api/dong-ranking 조회에는 실제 코드(MOCK_REGION_MATCH_NAME/MOCK_MY_CITY_CODE)를 쓴다.
+const MOCK_REGION_NAME        = "화성시";              // 화면 표시용 (뱃지/후킹카피/공유카드)
+const MOCK_REGION_MATCH_NAME  = "화성시동탄구";        // /api/ranking 응답에서 내 지역을 찾을 때 쓰는 실제 행정구역명
+const MOCK_MY_CITY_CODE       = "41597";               // 화성시동탄구 시군구 코드 (/api/dong-ranking 조회용)
 const MOCK_FEELS_LIKE_TEMP    = 34;                     // 체감온도 (°C) - /api/weather 연동 실패 시 폴백
-const MOCK_TOTAL_REGIONS      = 226;                    // 전국 시군구 총 개수
+const MOCK_TOTAL_REGIONS      = 256;                    // 전국 시군구 총 개수 (2026-07 기준)
 const MOCK_RANK_PERCENT       = 7;                       // 상위 % (더울수록 상위)
 const MOCK_CITY_RANK          = 16;                      // 전국 체감온도 순위 (1위=가장 더움)
 const MOCK_HOOK_COPY_LINES    = [                        // 후킹 카피 (줄바꿈 단위 배열)
@@ -825,10 +830,10 @@ async function loadRanking(){
     const data = await res.json();
     if(!Array.isArray(data.regions) || data.regions.length === 0) return;
 
-    const mine = data.regions.find(r => r.nameKo === MOCK_REGION_NAME);
+    const mine = data.regions.find(r => r.nameKo === MOCK_REGION_MATCH_NAME);
 
     currentTotalRegions = data.totalRegions;
-    currentCityRanking = buildCityRankingWindow(data.regions, MOCK_REGION_NAME);
+    currentCityRanking = buildCityRankingWindow(data.regions, MOCK_REGION_MATCH_NAME);
     if(mine){
       currentRankPercent = mine.percentile;
       currentCityRank = mine.rank;
@@ -845,7 +850,7 @@ async function loadRanking(){
 
 async function loadDongRanking(){
   try{
-    const res = await fetch('/api/dong-ranking');
+    const res = await fetch(`/api/dong-ranking?city=${MOCK_MY_CITY_CODE}`);
     if(!res.ok) return;
     const data = await res.json();
     if(!Array.isArray(data.dong) || data.dong.length === 0) return;
