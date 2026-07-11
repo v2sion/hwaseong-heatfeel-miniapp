@@ -652,10 +652,6 @@ const MOCK_FEELS_LIKE_TEMP    = 34;                     // 체감온도 (°C) - 
 const MOCK_TOTAL_REGIONS      = 256;                    // 전국 시군구 총 개수 (2026-07 기준)
 const MOCK_RANK_PERCENT       = 7;                       // 상위 % (더울수록 상위)
 const MOCK_CITY_RANK          = 16;                      // 전국 체감온도 순위 (1위=가장 더움)
-const MOCK_HOOK_COPY_LINES    = [                        // 후킹 카피 (줄바꿈 단위 배열)
-  "화성시, 오늘은 동남아 여행 갈 필요 없는",
-  "동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!"
-];
 const MOCK_UPDATED_AT_LABEL   = "오늘 15:00 기준";
 const MOCK_CHALLENGE_HASHTAG  = "#오늘체감온도챌린지 · 우리동네체감온도"; // 화면3 하단 워터마크 자리
 
@@ -703,6 +699,60 @@ let currentHsAverageTemp = MOCK_HS_AVERAGE_TEMP;
 let currentDongRanking = MOCK_DONG_RANKING;
 
 /* ============================================================
+   후킹 카피 시스템 (F3): 체감온도 구간별 템플릿 조합형
+   - 33도↑ 더움 / 35도↑ 매우 더움 / 38도↑ 폭염 / 열대야(21~06시 & 25도↑)
+   - 구간마다 문구 후보 여러 개 중 [지역명+반올림 온도]로 안정적으로 하나를 골라
+     같은 조건에서는 새로고침해도 같은 문구가 나오되, 온도가 바뀌면 자동으로 갱신된다.
+============================================================ */
+const HOOK_COPY_TEMPLATES = {
+  tropicalNight: [
+    ["{region}, 에어컨 없이 자면", "찜질방 숙박 체험! 오늘 밤도 열대야예요"],
+    ["{region}, 창문 열어도 후끈한 밤.", "선풍기 두 대는 기본 옵션인 열대야!"],
+  ],
+  extreme: [ // 38도 이상 - 폭염
+    ["{region}, 계란 프라이 바로 되는", "폭염 날씨! 나가면 5분 만에 후회할지도"],
+    ["{region}, 마스크 쓰면 사우나 체험판.", "야외활동은 잠시 미루는 게 좋겠어요"],
+  ],
+  veryHot: [ // 35도 이상 - 매우 더움
+    ["{region}, 러닝하면 찜질방에서 뛰는", "느낌의 날씨! 그늘도 못 피하는 더위예요"],
+    ["{region}, 에어컨 없인 못 버티는 날.", "아스팔트 위 계란 프라이도 머지않았어요"],
+  ],
+  hot: [ // 33도 이상 - 더움
+    ["{region}, 오늘은 동남아 여행 갈 필요 없는", "동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!"],
+    ["{region}, 가만히 있어도 땀이 주르륵.", "아이스아메리카노는 선택 아닌 필수인 날씨!"],
+  ],
+  normal: [ // 33도 미만
+    ["{region}, 오늘은 그럭저럭 견딜만한", "더위예요. 그래도 수분 보충은 잊지 마세요!"],
+  ],
+};
+
+function isNightHour(date = new Date()){
+  const h = date.getHours();
+  return h >= 21 || h < 6;
+}
+
+function pickTemplate(list, seedKey){
+  let hash = 0;
+  for(let i = 0; i < seedKey.length; i++) hash = (hash * 31 + seedKey.charCodeAt(i)) >>> 0;
+  return list[hash % list.length];
+}
+
+function getHookCopyLines(regionName, feelsLikeTemp){
+  let bracket;
+  if(isNightHour() && feelsLikeTemp >= 25) bracket = 'tropicalNight';
+  else if(feelsLikeTemp >= 38) bracket = 'extreme';
+  else if(feelsLikeTemp >= 35) bracket = 'veryHot';
+  else if(feelsLikeTemp >= 33) bracket = 'hot';
+  else bracket = 'normal';
+
+  const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}`;
+  const template = pickTemplate(HOOK_COPY_TEMPLATES[bracket], seedKey);
+  return template.map(line => line.replace('{region}', regionName));
+}
+
+let currentHookCopyLines = getHookCopyLines(MOCK_REGION_NAME, MOCK_FEELS_LIKE_TEMP);
+
+/* ============================================================
    RENDER
 ============================================================ */
 function fmtTemp(t){ return t.toFixed(1).replace(/\.0$/, ""); }
@@ -713,8 +763,8 @@ function renderScreen1(){
   document.getElementById('s1-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s1-sub').textContent = `기상청 동네예보 기준 · ${currentUpdatedLabel}`;
   document.getElementById('s1-hook-copy').innerHTML =
-    MOCK_HOOK_COPY_LINES.map((line,i)=>{
-      // 첫 줄의 지역명만 강조 (mock 연출용, 실제론 카피 룰에 맞게 조정)
+    currentHookCopyLines.map((line,i)=>{
+      // 첫 줄의 지역명만 강조
       return i===0 ? line.replace(MOCK_REGION_NAME, `<span class="accent">${MOCK_REGION_NAME}</span>`) : line;
     }).join('<br/>');
 }
@@ -770,7 +820,7 @@ function renderScreen3(){
   document.getElementById('s3-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s3-rank-line').textContent =
     `전국 ${currentTotalRegions}개 시군구 중 ${currentCityRank}위`;
-  document.getElementById('s3-hook-copy').innerHTML = MOCK_HOOK_COPY_LINES.join('<br/>');
+  document.getElementById('s3-hook-copy').innerHTML = currentHookCopyLines.join('<br/>');
   document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
   document.getElementById('s3-watermark').textContent = MOCK_CHALLENGE_HASHTAG;
 }
@@ -799,6 +849,7 @@ async function loadRealWeather(){
     currentFeelsLike = data.feelsLike;
     const updated = new Date(data.updatedAt);
     currentUpdatedLabel = `${updated.getHours()}:${String(updated.getMinutes()).padStart(2,'0')} 기준 (실시간)`;
+    currentHookCopyLines = getHookCopyLines(MOCK_REGION_NAME, currentFeelsLike);
 
     renderScreen1();
     renderScreen3();
@@ -943,7 +994,7 @@ function shareToKakao(){
     objectType: 'feed',
     content: {
       title: `${MOCK_REGION_NAME} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`,
-      description: MOCK_HOOK_COPY_LINES.join(' '),
+      description: currentHookCopyLines.join(' '),
       imageUrl: `${location.origin}/logo.png`,
       link: { mobileWebUrl: location.href, webUrl: location.href },
     },
