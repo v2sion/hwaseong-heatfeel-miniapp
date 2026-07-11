@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>오늘 우리동네 체감온도 - 미니앱 프로토타입</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   /* ============================================================
      DESIGN TOKENS
@@ -617,8 +619,8 @@
         </div>
 
         <div class="share-actions">
-          <button class="share-btn save" onclick="mockAction('이미지가 저장되었습니다 (mock)')">🖼 이미지 저장</button>
-          <button class="share-btn kakao" onclick="mockAction('카카오톡 공유 연동 예정 (mock)')">💬 카카오톡 공유</button>
+          <button class="share-btn save" onclick="saveShareCardImage()">🖼 이미지 저장</button>
+          <button class="share-btn kakao" onclick="shareToKakao()">💬 카카오톡 공유</button>
         </div>
 
         <div class="footer-watermark" id="s3-watermark">#오늘체감온도챌린지 · 우리동네체감온도</div>
@@ -885,9 +887,7 @@ function switchRankTab(which){
 }
 
 let toastTimer;
-function mockAction(msg){
-  // 실제 이미지 저장 / 카카오톡 공유 SDK 연동은 추후 작업.
-  // 지금은 버튼 존재 + 클릭 피드백(UX 확인용)만 제공.
+function showToast(msg){
   const toast = document.getElementById('toast');
   toast.textContent = msg;
   toast.classList.add('show');
@@ -895,10 +895,69 @@ function mockAction(msg){
   toastTimer = setTimeout(()=> toast.classList.remove('show'), 1600);
 }
 
+/* ============================================================
+   공유 기능: 이미지 저장 / 카카오톡 공유
+============================================================ */
+
+// 공유카드를 캡처해서 PNG로 다운로드. 서버/외부 API 없이 클라이언트에서 완결.
+async function saveShareCardImage(){
+  const card = document.querySelector('#screen-3 .share-card');
+  if(!card || typeof html2canvas !== 'function'){
+    showToast('이미지 저장 기능을 불러오지 못했습니다');
+    return;
+  }
+  try{
+    const canvas = await html2canvas(card, { backgroundColor: null, scale: 2 });
+    const link = document.createElement('a');
+    link.download = `오늘체감온도_${MOCK_REGION_NAME}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('이미지가 저장되었습니다');
+  }catch(err){
+    console.warn('이미지 저장 실패:', err);
+    showToast('이미지 저장에 실패했습니다');
+  }
+}
+
+// 카카오 JS 키는 서버(/api/config)에서 받아온다 - 커밋된 코드에 하드코딩하지 않기 위함.
+let kakaoReady = false;
+async function initKakao(){
+  try{
+    const res = await fetch('/api/config');
+    if(!res.ok) return;
+    const { kakaoJsKey } = await res.json();
+    if(!kakaoJsKey || typeof Kakao === 'undefined') return;
+    Kakao.init(kakaoJsKey);
+    kakaoReady = Kakao.isInitialized();
+  }catch(err){
+    console.warn('카카오 SDK 초기화 실패:', err);
+  }
+}
+
+function shareToKakao(){
+  if(!kakaoReady){
+    showToast('카카오톡 공유 설정이 아직 준비되지 않았습니다');
+    return;
+  }
+  Kakao.Share.sendDefault({
+    objectType: 'feed',
+    content: {
+      title: `${MOCK_REGION_NAME} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`,
+      description: MOCK_HOOK_COPY_LINES.join(' '),
+      imageUrl: `${location.origin}/logo.png`,
+      link: { mobileWebUrl: location.href, webUrl: location.href },
+    },
+    buttons: [
+      { title: '나도 확인하기', link: { mobileWebUrl: location.href, webUrl: location.href } },
+    ],
+  });
+}
+
 renderAll();
 loadRealWeather();
 loadRanking();
 loadDongRanking();
+initKakao();
 </script>
 </body>
 </html>
