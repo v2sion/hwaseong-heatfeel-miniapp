@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage } from '@apps-in-toss/web-framework';
 
 /* ============================================================
    MOCK DATA
@@ -569,14 +569,22 @@ function loadDataWithoutLocation(){
 ============================================================ */
 const LOCATION_CONSENT_KEY = 'heatfeel_location_consent_v1';
 
-function getStoredConsent(){
-  try{ return localStorage.getItem(LOCATION_CONSENT_KEY); }
-  catch(err){ return null; } // 프라이빗 브라우징 등 localStorage 차단 환경 대비
+// 앱인토스 WebView에서는 네이티브 Storage(비동기)를 우선 쓰고, 브릿지가 없는 일반
+// 브라우저(로컬/Vercel 단독 접속)에서는 localStorage로 대체한다.
+async function getStoredConsent(){
+  try{ return await Storage.getItem(LOCATION_CONSENT_KEY); }
+  catch(err){
+    try{ return localStorage.getItem(LOCATION_CONSENT_KEY); }
+    catch(err2){ return null; } // 프라이빗 브라우징 등 저장소 차단 환경 대비
+  }
 }
 
-function setStoredConsent(value){
-  try{ localStorage.setItem(LOCATION_CONSENT_KEY, value); }
-  catch(err){ /* 저장 실패해도 이번 세션 동작에는 지장 없음 */ }
+async function setStoredConsent(value){
+  try{ await Storage.setItem(LOCATION_CONSENT_KEY, value); }
+  catch(err){
+    try{ localStorage.setItem(LOCATION_CONSENT_KEY, value); }
+    catch(err2){ /* 저장 실패해도 이번 세션 동작에는 지장 없음 */ }
+  }
 }
 
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
@@ -601,8 +609,8 @@ function onConsentSkip(){
   bootWithSkeleton(loadDataWithoutLocation);
 }
 
-function startLocationFlow(){
-  const consent = getStoredConsent();
+async function startLocationFlow(){
+  const consent = await getStoredConsent();
   if(consent === 'allowed'){
     bootWithSkeleton(initLocationAndData);
   }else if(consent === 'skipped'){
