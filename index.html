@@ -63,6 +63,11 @@
 
     /* JS가 현재 체감온도 구간에 맞춰 매 렌더마다 갱신하는 전역 색상. 초기값은 mock(34도, 더움) 기준 */
     --heat-color: var(--heat-hot);
+
+    /* Safe Area: 기본값은 표준 CSS env(). 앱인토스 WebView 안에서는 JS가
+       SafeAreaInsets.get()/subscribe() 값으로 이 값을 덮어써 더 정확한 값을 쓴다. */
+    --toss-safe-top: env(safe-area-inset-top);
+    --toss-safe-bottom: env(safe-area-inset-bottom);
   }
 
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -121,7 +126,7 @@
     display:flex;
     align-items:center;
     gap:8px;
-    padding:calc(18px + env(safe-area-inset-top)) 20px 4px;
+    padding:calc(18px + var(--toss-safe-top)) 20px 4px;
   }
   .backbtn{
     width:36px; height:36px;
@@ -456,7 +461,7 @@
     position:sticky;
     bottom:0;
     left:0; right:0;
-    padding:14px 20px 22px;
+    padding:14px 20px calc(22px + var(--toss-safe-bottom));
     background:linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 30%);
   }
 
@@ -691,7 +696,7 @@
     width:100%;
     background:var(--white);
     border-radius:var(--radius-lg) var(--radius-lg) 0 0;
-    padding:12px 22px calc(22px + env(safe-area-inset-bottom));
+    padding:12px 22px calc(22px + var(--toss-safe-bottom));
     box-shadow:0 -8px 30px rgba(25,31,40,0.14);
     transform:translateY(16px);
     transition:transform .25s cubic-bezier(.16,1,.3,1);

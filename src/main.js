@@ -1,8 +1,26 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets } from '@apps-in-toss/web-framework';
 
 // 브릿지가 없는 일반 브라우저에서도 조용히 무시되도록 감싼 로깅 헬퍼.
 function trackScreen(params){ try{ Analytics.screen(params); }catch(err){} }
 function trackClick(params){ try{ Analytics.click(params); }catch(err){} }
+
+// Safe Area: CSS env()는 기본값일 뿐이고, 앱인토스 WebView에서 더 정확한 값을
+// SafeAreaInsets로 받아 :root의 --toss-safe-* 커스텀 프로퍼티를 덮어쓴다.
+// 실패(브라우저 단독 접속 등)해도 CSS의 env() 기본값으로 자연스럽게 동작한다.
+function applySafeAreaInsets(insets){
+  const root = document.documentElement.style;
+  root.setProperty('--toss-safe-top', `${insets.top}px`);
+  root.setProperty('--toss-safe-bottom', `${insets.bottom}px`);
+}
+
+function initSafeArea(){
+  try{
+    applySafeAreaInsets(SafeAreaInsets.get());
+    SafeAreaInsets.subscribe({ onEvent: applySafeAreaInsets });
+  }catch(err){
+    console.warn('Safe Area 조회 실패(브라우저 환경 등):', err);
+  }
+}
 
 /* ============================================================
    MOCK DATA
@@ -665,6 +683,7 @@ renderAll();
 startLocationFlow();
 initKakao();
 initUserKey();
+initSafeArea();
 trackScreen({ log_name: 'screen_view', screen: currentScreenNum });
 
 // ES 모듈은 top-level 선언이 전역(window)으로 노출되지 않는다.
