@@ -538,7 +538,8 @@ async function shareResult(){
      기존 MOCK 값(강남구/역삼1동)을 그대로 사용 - 비기능 요구사항의
      "위치 권한 거부 시 fallback" 처리.
 ============================================================ */
-function getBrowserLocation(timeoutMs = 8000){
+// 8초는 실외 GPS 콜드스타트엔 짧을 때가 많아(특히 실내/첫 요청) 12초로 넉넉하게 잡는다.
+function getBrowserLocation(timeoutMs = 12000){
   return new Promise((resolve, reject) => {
     if(!navigator.geolocation){
       reject(new Error('geolocation unsupported'));
@@ -630,10 +631,13 @@ async function setStoredConsent(value){
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
 // 최초 로딩(스켈레톤 표시) → mock/실데이터 중 먼저 준비되는 쪽으로 한 번에 리빌.
-// 실데이터가 늦어도 최대 1.2초 후엔 mock 값 그대로 노출(무한 스켈레톤 방지), 이후 도착하는 값은 조용히 교체.
-async function bootWithSkeleton(loaderFn){
+// 실데이터가 늦어도 최대 maxWaitMs 후엔 mock 값 그대로 노출(무한 스켈레톤 방지), 이후 도착하는 값은 조용히 교체.
+// 위치 동의 경로는 GPS 확인 자체가 몇 초 걸릴 수 있어(특히 콜드스타트) 더 긴 창을 준다 -
+// 짧으면 스켈레톤이 너무 일찍 사라져 mock(기본 지역)이 "최종 상태"처럼 보이고, 뒤늦게 도착하는
+// 실제 위치 업데이트를 사용자가 놓치기 쉽다.
+async function bootWithSkeleton(loaderFn, maxWaitMs = 1200){
   document.body.classList.add('is-loading');
-  await Promise.race([loaderFn(), sleep(1200)]);
+  await Promise.race([loaderFn(), sleep(maxWaitMs)]);
   document.body.classList.remove('is-loading');
 }
 
@@ -651,7 +655,8 @@ function onConsentAllow(){
   trackClick({ log_name: 'location_consent_allow' });
   setStoredConsent('allowed');
   document.getElementById('consent-overlay').classList.remove('show');
-  bootWithSkeleton(initLocationAndData);
+  showToast('내 위치를 확인하고 있어요');
+  bootWithSkeleton(initLocationAndData, 4000);
 }
 
 function onConsentSkip(){
@@ -664,7 +669,7 @@ function onConsentSkip(){
 async function startLocationFlow(){
   const consent = await getStoredConsent();
   if(consent === 'allowed'){
-    bootWithSkeleton(initLocationAndData);
+    bootWithSkeleton(initLocationAndData, 4000);
   }else if(consent === 'skipped'){
     bootWithSkeleton(loadDataWithoutLocation);
   }else{
