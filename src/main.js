@@ -441,6 +441,10 @@ let currentScreenNum = 1;
 function goToScreen(n){
   currentScreenNum = n;
   document.getElementById('screens').className = 'screens at-' + n;
+  // 각 .screen은 자체 overflow-y:auto라 스크롤 위치를 따로 기억한다 - 이전에 스크롤해뒀던
+  // 화면으로 다시 이동하면 중간부터 보이는 문제가 있어, 이동할 때마다 최상단으로 리셋한다.
+  const targetScreen = document.getElementById('screen-' + n);
+  if(targetScreen) targetScreen.scrollTop = 0;
   trackScreen({ log_name: 'screen_view', screen: n });
 }
 
@@ -595,16 +599,14 @@ async function resolveMyLocation(){
 
 async function initLocationAndData(){
   await resolveMyLocation();
-  loadRealWeather();
-  loadRanking();
-  loadDongRanking();
+  // 셋 다 끝날 때까지 기다려야 스켈레톤이 실제 콘텐츠 준비 전에 너무 일찍 사라지지 않는다.
+  // allSettled: 하나가 실패해도(예: 동 데이터 없음) 나머지 로딩을 막지 않음 - 각 함수 내부에서 개별 mock 폴백 처리.
+  await Promise.allSettled([loadRealWeather(), loadRanking(), loadDongRanking()]);
 }
 
 // 위치 없이도 기본 지역(강남구/역삼1동) 기준으로 화면은 항상 뜬다 - 여기서는 데이터만 갱신
-function loadDataWithoutLocation(){
-  loadRealWeather();
-  loadRanking();
-  loadDongRanking();
+async function loadDataWithoutLocation(){
+  await Promise.allSettled([loadRealWeather(), loadRanking(), loadDongRanking()]);
 }
 
 /* ============================================================
@@ -642,20 +644,48 @@ const LOCATING_MESSAGES = [
   '체감온도 탐정, 위치를 추리하고 있어요',
 ];
 let locatingMessageTimer = null;
+let locatingTypeTimer = null;
+
+// 문구를 한 번에 바꾸지 않고 한 글자씩 "타이핑되는" 느낌으로 채워 넣는다.
+function typeMessage(el, text){
+  clearInterval(locatingTypeTimer);
+  el.textContent = '';
+  let i = 0;
+  locatingTypeTimer = setInterval(() => {
+    i++;
+    el.textContent = text.slice(0, i);
+    if(i >= text.length) clearInterval(locatingTypeTimer);
+  }, 45);
+}
 
 function startLocatingMessages(){
   const el = document.getElementById('location-progress-text');
   let i = 0;
-  el.textContent = LOCATING_MESSAGES[0];
+  typeMessage(el, LOCATING_MESSAGES[0]);
   locatingMessageTimer = setInterval(() => {
     i = (i + 1) % LOCATING_MESSAGES.length;
-    el.textContent = LOCATING_MESSAGES[i];
-  }, 2200);
+    typeMessage(el, LOCATING_MESSAGES[i]);
+  }, 2600);
 }
 
 function stopLocatingMessages(){
   clearInterval(locatingMessageTimer);
+  clearInterval(locatingTypeTimer);
   locatingMessageTimer = null;
+  locatingTypeTimer = null;
+}
+
+// 로딩 중엔 체감온도 숫자를 빠르게 무작위로 바꿔서 "계산 중"인 것처럼 보여준다.
+let tempRollTimer = null;
+function startTempRollAnimation(){
+  const el = document.getElementById('s1-temp');
+  tempRollTimer = setInterval(() => {
+    el.textContent = Math.floor(20 + Math.random() * 20);
+  }, 90);
+}
+function stopTempRollAnimation(){
+  clearInterval(tempRollTimer);
+  tempRollTimer = null;
 }
 
 // 최초 로딩(스켈레톤 표시) → 실데이터가 준비될 때까지 유지한다(강남구 등 mock 값이
@@ -664,11 +694,13 @@ function stopLocatingMessages(){
 // locating:true면 rank-badge 대신 위치 확인 중 문구를 보여준다(위치 동의 경로에서만 사용).
 async function bootWithSkeleton(loaderFn, { locating = false, maxWaitMs = 20000 } = {}){
   document.body.classList.add('is-loading');
+  startTempRollAnimation();
   if(locating){
     document.body.classList.add('is-locating');
     startLocatingMessages();
   }
   await Promise.race([loaderFn(), sleep(maxWaitMs)]);
+  stopTempRollAnimation();
   document.body.classList.remove('is-loading');
   if(locating){
     document.body.classList.remove('is-locating');

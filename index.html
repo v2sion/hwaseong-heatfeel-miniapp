@@ -171,7 +171,7 @@
 
   /* ================= 화면1: 메인 ================= */
   #screen-1 .hero-wrap{
-    padding:8px 20px 28px;
+    padding:8px 20px calc(96px + var(--toss-safe-bottom));
   }
   .rank-badge{
     position:relative;
@@ -297,20 +297,26 @@
   body.is-loading .hook-card::after{ opacity:1; animation:skeleton-shimmer 1.4s ease-in-out infinite; }
 
   /* 위치 확인 중(is-locating)엔 중립 쉬머 대신 폭염/매우더움/더움 색으로 눈에 띄게 배경을 채우고
-     그 안에 위트있는 순환 문구를 크게 보여준다 - 로딩임을 가장 잘 알아챌 수 있는 영역이라 여기로 모음 */
+     그 안에 위트있는 순환 문구를 카드 정중앙에 크게 보여준다 - 로딩임을 가장 잘 알아챌 수 있는
+     영역이라 여기로 모음. tag/p는 display:none으로 완전히 레이아웃에서 빼고, hook-progress를
+     inset:0 오버레이로 깔아야 (opacity:0로 자리만 차지하게 두면) 진짜 카드 정중앙에 오지 않는다. */
   .hook-card .hook-progress{ display:none; }
   body.is-locating .hook-card::after{ opacity:0; }
   body.is-locating .hook-card{
+    min-height:132px;
     background:var(--heat-veryhot); /* color-mix() 미지원 브라우저 대체값 */
     background:linear-gradient(135deg, var(--heat-hot), var(--heat-veryhot) 55%, var(--heat-extreme));
   }
   body.is-locating .hook-card::before{ background:rgba(255,255,255,0.28); }
+  body.is-locating .hook-card .tag,
+  body.is-locating .hook-card p{ display:none; }
   body.is-locating .hook-card .hook-progress{
     display:flex;
+    position:absolute;
+    inset:0;
     align-items:center;
     justify-content:center;
-    min-height:56px;
-    position:relative;
+    padding:0 24px;
     color:var(--white);
     font-size:18px;
     font-weight:800;
@@ -362,7 +368,7 @@
   }
 
   /* ================= 화면2: 순위 상세 ================= */
-  #screen-2 .body-wrap{ padding:6px 20px 100px; }
+  #screen-2 .body-wrap{ padding:6px 20px calc(96px + var(--toss-safe-bottom)); }
 
   .toggle-tabs{
     display:flex;
@@ -558,16 +564,23 @@
   .dong-row .dong-diff.up{ color:var(--orange-600); }
   .dong-row .dong-diff.down{ color:var(--mint-700); }
 
-  .sticky-cta{
-    position:sticky;
-    bottom:0;
-    left:0; right:0;
-    padding:14px 20px calc(22px + var(--toss-safe-bottom));
-    background:linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 30%);
+  /* 하단 플로팅 CTA - 화면(.screen)이 아니라 .device 바로 아래 있어서 스크롤/해상도와
+     무관하게 항상 화면 하단에 뜬다(콘텐츠가 짧아도 위치가 밀리지 않음). #screens의 at-N
+     클래스에 맞춰 해당 화면 버튼만 노출한다. */
+  .floating-cta{
+    display:none;
+    position:absolute;
+    left:0; right:0; bottom:0;
+    padding:14px 20px calc(14px + var(--toss-safe-bottom));
+    background:linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 35%);
+    z-index:10;
   }
+  #screens.at-1 ~ #floating-cta-1,
+  #screens.at-2 ~ #floating-cta-2,
+  #screens.at-3 ~ #floating-cta-3{ display:block; }
 
   /* ================= 화면3: 공유카드 ================= */
-  #screen-3 .body-wrap{ padding:6px 20px 30px; display:flex; flex-direction:column; min-height:100%; }
+  #screen-3 .body-wrap{ padding:6px 20px calc(96px + var(--toss-safe-bottom)); display:flex; flex-direction:column; min-height:100%; }
 
   .share-card{
     margin-top:18px;
@@ -654,7 +667,6 @@
   .share-actions{
     display:flex;
     gap:10px;
-    margin-top:22px;
   }
   .share-btn{
     flex:1;
@@ -898,16 +910,13 @@
     0%{ background-position:200% 0; }
     100%{ background-position:-200% 0; }
   }
-  body.is-loading .temp-hero .value{
-    color:transparent !important;
-    -webkit-text-fill-color:transparent;
-    background-image:linear-gradient(90deg, rgba(139,149,161,0.16) 25%, rgba(139,149,161,0.32) 37%, rgba(139,149,161,0.16) 63%);
-    background-size:400% 100%;
-    -webkit-background-clip:text;
-    background-clip:text;
-    animation:skeleton-shimmer 1.4s ease-in-out infinite;
-    border-radius:8px;
+  /* 로딩 중엔 텍스트를 숨기는 대신, JS(startTempRollAnimation)가 실제로 숫자를 빠르게
+     돌려서 "계산 중"인 느낌을 준다 - 그래서 숨김 처리 없이 살짝 펄스만 더한다. */
+  @keyframes temp-roll-pulse{
+    0%, 100%{ opacity:1; }
+    50%{ opacity:.55; }
   }
+  body.is-loading .temp-hero .value{ animation:temp-roll-pulse .5s ease-in-out infinite; }
   /* rank-badge는 background-clip:text 방식 대신, 텍스트를 아예 숨기고 쉬머 블록만 보여준다 -
      구형 브라우저에서 background-clip:text가 깨지면 mock 지역명("강남구" 등)이 그대로 노출되는
      문제가 있었어서 더 안전한 방식으로 교체 */
@@ -990,7 +999,6 @@
         </div>
 
         <div class="cta-wrap">
-          <button class="primary-btn" id="s1-cta-btn" onclick="goToScreen(2)">우리 동네 순위 자세히 보기 →</button>
           <div class="helper">전국 시/군/구, <span id="s1-helper-region">강남구</span> 내 동 단위까지 비교해보세요</div>
           <div style="text-align:center;margin-top:4px;">
             <a class="attribution" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
@@ -1024,9 +1032,6 @@
           <div id="dong-list"></div>
         </div>
 
-        <div class="sticky-cta">
-          <button class="primary-btn" onclick="goToScreen(3)">결과 공유하기</button>
-        </div>
       </div>
     </section>
 
@@ -1057,16 +1062,26 @@
           <a class="attribution" style="margin-top:4px; color:rgba(255,255,255,.75);" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
         </div>
 
-        <div class="share-actions">
-          <button class="share-btn save" onclick="saveShareCardImage()" aria-label="이미지로 저장">이미지 저장</button>
-          <button class="share-btn native" onclick="shareResult()" aria-label="공유하기">공유하기</button>
-        </div>
-
         <div class="footer-watermark" id="s3-watermark">#오늘체감온도챌린지 · 우리동네체감온도</div>
       </div>
 
       <div class="toast" id="toast"></div>
     </section>
+  </div>
+
+  <!-- 하단 CTA도 .screens 밖(=.device 바로 아래)에 플로팅으로 둔다. 화면 스크롤/해상도와 무관하게
+       항상 화면 하단에 떠 있도록 - #screens.at-N 클래스에 맞춰 해당 화면의 버튼만 노출한다. -->
+  <div class="floating-cta" id="floating-cta-1">
+    <button class="primary-btn" id="s1-cta-btn" onclick="goToScreen(2)">우리 동네 순위 자세히 보기 →</button>
+  </div>
+  <div class="floating-cta" id="floating-cta-2">
+    <button class="primary-btn" onclick="goToScreen(3)">결과 공유하기</button>
+  </div>
+  <div class="floating-cta" id="floating-cta-3">
+    <div class="share-actions">
+      <button class="share-btn save" onclick="saveShareCardImage()" aria-label="이미지로 저장">이미지 저장</button>
+      <button class="share-btn native" onclick="shareResult()" aria-label="공유하기">공유하기</button>
+    </div>
   </div>
 
   <!-- .screens 밖(=.device 바로 아래)에 둬야 한다. .screens는 3화면 가로 스와이프를 위해
