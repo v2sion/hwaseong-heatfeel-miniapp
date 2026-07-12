@@ -4,6 +4,17 @@ import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, s
 function trackScreen(params){ try{ Analytics.screen(params); }catch(err){} }
 function trackClick(params){ try{ Analytics.click(params); }catch(err){} }
 
+// 일부 환경(예: 브릿지가 없는 iOS Safari에서의 앱인토스 SDK 호출)은 실패 시
+// reject 대신 Promise가 영영 끝나지 않는 방식으로 멈출 수 있다. 그러면 await가
+// 하염없이 대기하며 이후 로직(동의 팝업 노출, 위치 fallback 등)이 통째로 멈춘다.
+// 지정 시간 안에 안 끝나면 reject시켜 항상 다음 fallback으로 넘어가게 한다.
+function withTimeout(promise, ms){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
 // Safe Area: CSS env()는 기본값일 뿐이고, 앱인토스 WebView에서 더 정확한 값을
 // SafeAreaInsets로 받아 :root의 --toss-safe-* 커스텀 프로퍼티를 덮어쓴다.
 // 실패(브라우저 단독 접속 등)해도 CSS의 env() 기본값으로 자연스럽게 동작한다.
@@ -522,7 +533,7 @@ async function copyShareLink(){
   trackClick({ log_name: 'share_copy_link' });
   const text = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%\n${currentHookCopyLines.join(' ')}\n${location.href}`;
   try{
-    await setClipboardText(text);
+    await withTimeout(setClipboardText(text), 1500);
   }catch(err){
     try{
       await navigator.clipboard.writeText(text);
@@ -557,7 +568,7 @@ function getBrowserLocation(timeoutMs = 8000){
 }
 
 async function getTossLocation(){
-  const res = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+  const res = await withTimeout(getCurrentLocation({ accuracy: Accuracy.Balanced }), 8000);
   return { lat: res.coords.latitude, lon: res.coords.longitude };
 }
 
@@ -616,7 +627,7 @@ const LOCATION_CONSENT_KEY = 'heatfeel_location_consent_v1';
 // 앱인토스 WebView에서는 네이티브 Storage(비동기)를 우선 쓰고, 브릿지가 없는 일반
 // 브라우저(로컬/Vercel 단독 접속)에서는 localStorage로 대체한다.
 async function getStoredConsent(){
-  try{ return await Storage.getItem(LOCATION_CONSENT_KEY); }
+  try{ return await withTimeout(Storage.getItem(LOCATION_CONSENT_KEY), 1500); }
   catch(err){
     try{ return localStorage.getItem(LOCATION_CONSENT_KEY); }
     catch(err2){ return null; } // 프라이빗 브라우징 등 저장소 차단 환경 대비
@@ -624,7 +635,7 @@ async function getStoredConsent(){
 }
 
 async function setStoredConsent(value){
-  try{ await Storage.setItem(LOCATION_CONSENT_KEY, value); }
+  try{ await withTimeout(Storage.setItem(LOCATION_CONSENT_KEY, value), 1500); }
   catch(err){
     try{ localStorage.setItem(LOCATION_CONSENT_KEY, value); }
     catch(err2){ /* 저장 실패해도 이번 세션 동작에는 지장 없음 */ }
