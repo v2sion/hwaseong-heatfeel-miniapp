@@ -56,6 +56,7 @@ const MOCK_MY_CITY_CODE       = "11680";               // 강남구 시군구 �
 const MOCK_MY_DONG_NAME       = "역삼1동";             // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
 const MOCK_COORD              = { lat: 37.500889, lon: 127.035491 }; // 역삼1동 좌표, 위치 연동 실패 시 폴백
 const MOCK_FEELS_LIKE_TEMP    = 34;                     // 체감온도 (°C) - /api/weather 연동 실패 시 폴백
+const MOCK_ACTUAL_TEMP        = 31;                     // 실제 기온 (°C) - 체감온도와 구분해서 보여주는 부가정보
 const MOCK_TOTAL_REGIONS      = 256;                    // 전국 시군구 총 개수 (2026-07 기준)
 const MOCK_RANK_PERCENT       = 7;                       // 상위 % (더울수록 상위)
 const MOCK_CITY_RANK          = 16;                      // 전국 체감온도 순위 (1위=가장 더움)
@@ -96,6 +97,7 @@ let currentMyDongName = MOCK_MY_DONG_NAME;            // 화면2 동 단위 탭�
 // 화면1/3에서 실제로 표시할 체감온도. /api/weather 연동 성공 시 실데이터로 교체되고,
 // 실패(로컬에서 vercel dev 없이 index.html만 열람 등) 시 MOCK 값을 그대로 사용한다.
 let currentFeelsLike = MOCK_FEELS_LIKE_TEMP;
+let currentActualTemp = MOCK_ACTUAL_TEMP;
 let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
 
 // /api/ranking(전국 256개 시군구, 시간당 갱신) 연동 성공 시 교체되는 순위 관련 값들.
@@ -211,6 +213,7 @@ function renderScreen1(){
     `${currentRegionName}, 오늘 전국 ${currentTotalRegions}개 시군구 중 상위 ${currentRankPercent}%`;
   document.getElementById('s1-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s1-sub').textContent = `기상청 동네예보 기준 · ${currentUpdatedLabel}`;
+  document.getElementById('s1-actual-temp-value').textContent = fmtTemp(currentActualTemp);
   document.getElementById('s1-helper-region').textContent = currentRegionName;
   document.getElementById('s1-hook-copy').innerHTML =
     currentHookCopyLines.map((line,i)=>{
@@ -337,6 +340,7 @@ async function loadRealWeather(){
     if(typeof data.feelsLike !== 'number') throw new Error('invalid weather payload');
 
     currentFeelsLike = data.feelsLike;
+    if(typeof data.temp === 'number') currentActualTemp = data.temp;
     const updated = new Date(data.updatedAt);
     currentUpdatedLabel = `${updated.getHours()}:${String(updated.getMinutes()).padStart(2,'0')} 기준 (실시간)`;
     currentHookCopyLines = getHookCopyLines(currentRegionName, currentFeelsLike);

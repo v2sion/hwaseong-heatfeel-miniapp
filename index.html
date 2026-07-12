@@ -174,6 +174,7 @@
     padding:8px 20px 28px;
   }
   .rank-badge{
+    position:relative;
     display:inline-flex;
     align-items:center;
     gap:6px;
@@ -187,19 +188,20 @@
     border-radius:var(--radius-pill);
     box-shadow:var(--shadow-card);
     margin-top:18px;
-    transition:color .3s ease, background .3s ease;
+    transition:color .3s ease, background .3s ease, border-color .3s ease, box-shadow .3s ease;
   }
   .rank-badge .dot{
     width:6px; height:6px; border-radius:50%;
     background:var(--heat-color);
     flex-shrink:0;
-    transition:background .3s ease;
+    transition:background .3s ease, opacity .3s ease;
   }
   .rank-badge span:last-child{
     min-width:0;
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+    transition:opacity .3s ease;
   }
 
   .temp-hero{
@@ -229,6 +231,18 @@
     font-size:13px;
     color:var(--ink-300);
   }
+  .temp-hero .actual-temp{
+    display:inline-block;
+    margin-top:8px;
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-500);
+    background:var(--ink-100);
+    padding:4px 10px;
+    border-radius:var(--radius-pill);
+    transition:opacity .3s ease;
+  }
+  body.is-loading .temp-hero .actual-temp{ opacity:0; }
 
   .hook-card{
     margin-top:28px;
@@ -282,6 +296,28 @@
   body.is-loading .hook-card .tag, body.is-loading .hook-card p{ opacity:0; }
   body.is-loading .hook-card::after{ opacity:1; animation:skeleton-shimmer 1.4s ease-in-out infinite; }
 
+  /* 위치 확인 중(is-locating)엔 중립 쉬머 대신 폭염/매우더움/더움 색으로 눈에 띄게 배경을 채우고
+     그 안에 위트있는 순환 문구를 크게 보여준다 - 로딩임을 가장 잘 알아챌 수 있는 영역이라 여기로 모음 */
+  .hook-card .hook-progress{ display:none; }
+  body.is-locating .hook-card::after{ opacity:0; }
+  body.is-locating .hook-card{
+    background:var(--heat-veryhot); /* color-mix() 미지원 브라우저 대체값 */
+    background:linear-gradient(135deg, var(--heat-hot), var(--heat-veryhot) 55%, var(--heat-extreme));
+  }
+  body.is-locating .hook-card::before{ background:rgba(255,255,255,0.28); }
+  body.is-locating .hook-card .hook-progress{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:56px;
+    position:relative;
+    color:var(--white);
+    font-size:18px;
+    font-weight:800;
+    line-height:1.4;
+    text-align:center;
+  }
+
   .primary-btn{
     width:100%;
     border:none;
@@ -300,17 +336,21 @@
   }
   .primary-btn:active{ transform:translateY(1px); }
 
-  /* 메인 CTA 버튼: 로딩 중엔 비활성화하고, 위치 확인 단계에선 라벨 대신 위트있는 진행 문구를 보여준다 */
-  .cta-wrap .primary-btn .btn-progress{ display:none; }
+  /* 메인 CTA 버튼: 로딩 중엔 클릭을 막고 스켈레톤(라벨 텍스트 숨김 + 쉬머)으로 처리한다 */
   body.is-loading .cta-wrap .primary-btn{
-    opacity:.7;
+    position:relative;
+    color:transparent;
     pointer-events:none;
+    background:var(--ink-100);
     box-shadow:none;
   }
-  body.is-locating .cta-wrap .primary-btn .btn-label{ display:none; }
-  body.is-locating .cta-wrap .primary-btn .btn-progress{
-    display:inline-block;
-    text-align:center;
+  body.is-loading .cta-wrap .primary-btn::after{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:var(--radius-md);
+    background-image:linear-gradient(90deg, rgba(139,149,161,0.16) 25%, rgba(139,149,161,0.32) 37%, rgba(139,149,161,0.16) 63%);
+    background-size:400% 100%;
+    animation:skeleton-shimmer 1.4s ease-in-out infinite;
   }
 
   .cta-wrap{ margin-top:26px; padding-bottom:12px; }
@@ -835,6 +875,15 @@
   .bracket-row .bracket-text strong{ font-size:14px; font-weight:700; color:var(--ink-900); }
   .bracket-row .bracket-text span{ font-size:12.5px; color:var(--ink-500); margin-top:1px; }
 
+  .bracket-basis{
+    background:var(--ink-100);
+    border-radius:var(--radius-md);
+    padding:14px 16px;
+    margin-bottom:20px;
+  }
+  .bracket-basis strong{ display:block; font-size:13px; font-weight:700; color:var(--ink-900); margin-bottom:6px; }
+  .bracket-basis p{ margin:0; font-size:12.5px; line-height:1.6; color:var(--ink-500); }
+
   .footer-watermark{
     margin-top:auto;
     padding-top:24px;
@@ -849,8 +898,7 @@
     0%{ background-position:200% 0; }
     100%{ background-position:-200% 0; }
   }
-  body.is-loading .temp-hero .value,
-  body.is-loading .rank-badge{
+  body.is-loading .temp-hero .value{
     color:transparent !important;
     -webkit-text-fill-color:transparent;
     background-image:linear-gradient(90deg, rgba(139,149,161,0.16) 25%, rgba(139,149,161,0.32) 37%, rgba(139,149,161,0.16) 63%);
@@ -859,6 +907,20 @@
     background-clip:text;
     animation:skeleton-shimmer 1.4s ease-in-out infinite;
     border-radius:8px;
+  }
+  /* rank-badge는 background-clip:text 방식 대신, 텍스트를 아예 숨기고 쉬머 블록만 보여준다 -
+     구형 브라우저에서 background-clip:text가 깨지면 mock 지역명("강남구" 등)이 그대로 노출되는
+     문제가 있었어서 더 안전한 방식으로 교체 */
+  body.is-loading .rank-badge{ border-color:transparent; box-shadow:none; }
+  body.is-loading .rank-badge .dot,
+  body.is-loading .rank-badge span:last-child{ opacity:0; }
+  body.is-loading .rank-badge::after{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:var(--radius-pill);
+    background-image:linear-gradient(90deg, rgba(139,149,161,0.16) 25%, rgba(139,149,161,0.32) 37%, rgba(139,149,161,0.16) 63%);
+    background-size:400% 100%;
+    animation:skeleton-shimmer 1.4s ease-in-out infinite;
   }
   body.is-loading #s3-region-name .name-text,
   body.is-loading #s3-temp,
@@ -913,21 +975,22 @@
           <div class="label">지금 체감온도 <button class="info-icon" onclick="openBracketInfo()" aria-label="체감온도 색상 안내">ⓘ</button></div>
           <div class="value"><span id="s1-temp">34</span>°</div>
           <div class="sub" id="s1-sub">기상청 동네예보 기준 · 마지막 업데이트 방금 전</div>
+          <div class="actual-temp" id="s1-actual-temp">실제 기온 <span id="s1-actual-temp-value">31</span>°</div>
         </div>
 
-        <div class="hook-card">
+        <div class="hook-card" id="hook-card">
           <span class="tag">오늘의 체감 코멘트</span>
           <p id="s1-hook-copy">
             강남구, 오늘은 <span class="accent">동남아 여행</span> 갈 필요 없는<br/>
             동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
           </p>
+          <div class="hook-progress">
+            <span id="location-progress-text">지금 계신 동네의 열 추적을 진행하고 있어요</span>
+          </div>
         </div>
 
         <div class="cta-wrap">
-          <button class="primary-btn" id="s1-cta-btn" onclick="goToScreen(2)">
-            <span class="btn-label">우리 동네 순위 자세히 보기 →</span>
-            <span class="btn-progress" id="location-progress-text">지금 계신 동네의 열 추적을 진행하고 있어요</span>
-          </button>
+          <button class="primary-btn" id="s1-cta-btn" onclick="goToScreen(2)">우리 동네 순위 자세히 보기 →</button>
           <div class="helper">전국 시/군/구, <span id="s1-helper-region">강남구</span> 내 동 단위까지 비교해보세요</div>
           <div style="text-align:center;margin-top:4px;">
             <a class="attribution" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
@@ -1033,6 +1096,10 @@
         <div class="bracket-row"><span class="swatch" style="background:var(--heat-veryhot)"></span><div class="bracket-text"><strong>매우 더움</strong><span>체감 35°C 이상</span></div></div>
         <div class="bracket-row"><span class="swatch" style="background:var(--heat-extreme)"></span><div class="bracket-text"><strong>폭염</strong><span>체감 38°C 이상</span></div></div>
         <div class="bracket-row"><span class="swatch" style="background:var(--heat-tropicalnight)"></span><div class="bracket-text"><strong>열대야</strong><span>밤 9시~6시, 체감 25°C 이상</span></div></div>
+      </div>
+      <div class="bracket-basis">
+        <strong>체감온도는 어떻게 계산되나요?</strong>
+        <p>기온에 습도·바람 같은 요소를 더해 사람이 실제로 느끼는 더위를 계산한 값이에요. 같은 기온이라도 습도가 높으면 더 덥게, 바람이 불면 더 선선하게 느껴지는 걸 반영해요. 기상청 동네예보(OpenWeatherMap 제공) 데이터를 기준으로 매시간 갱신돼요.</p>
       </div>
       <button class="primary-btn" onclick="closeBracketInfo()">확인했어요</button>
     </div>
