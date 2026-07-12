@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText } from '@apps-in-toss/web-framework';
 
 /* ============================================================
    MOCK DATA
@@ -490,6 +490,24 @@ function shareToKakao(){
   });
 }
 
+// @apps-in-toss/web-framework(WebView 전용 패키지)에는 범용 네이티브 공유 시트가 없어
+// (React Native/Granite 전용인 native-modules의 share()만 존재), 대신 클립보드 복사로
+// "카카오톡 외 공유 채널"을 제공한다. 앱인토스 클립보드 브릿지 우선, 실패 시 웹 Clipboard API로 대체.
+async function copyShareLink(){
+  const text = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%\n${currentHookCopyLines.join(' ')}\n${location.href}`;
+  try{
+    await setClipboardText(text);
+  }catch(err){
+    try{
+      await navigator.clipboard.writeText(text);
+    }catch(err2){
+      showToast('링크 복사에 실패했습니다');
+      return;
+    }
+  }
+  showToast('공유 링크가 복사되었습니다');
+}
+
 /* ============================================================
    F1: 실제 위치 연동
    - navigator.geolocation으로 좌표를 얻고, /api/nearest-region으로
@@ -645,6 +663,7 @@ Object.assign(window, {
   switchRankTab,
   saveShareCardImage,
   shareToKakao,
+  copyShareLink,
   onConsentAllow,
   onConsentSkip,
   retryDataLoad,

@@ -572,6 +572,12 @@
     box-shadow:0 4px 14px rgba(254,229,0,0.45);
   }
   .share-btn.kakao:active{ transform:translateY(1px); }
+  .share-btn.copy{
+    background:var(--white);
+    color:var(--ink-700);
+    box-shadow:var(--shadow-card);
+    border:1px solid var(--ink-100);
+  }
 
   .attribution{
     display:inline-flex;
@@ -896,6 +902,7 @@
         <div class="share-actions">
           <button class="share-btn save" onclick="saveShareCardImage()" aria-label="이미지로 저장">이미지 저장</button>
           <button class="share-btn kakao" onclick="shareToKakao()" aria-label="카카오톡으로 공유">카카오톡 공유</button>
+          <button class="share-btn copy" onclick="copyShareLink()" aria-label="링크 복사">링크 복사</button>
         </div>
 
         <div class="footer-watermark" id="s3-watermark">#오늘체감온도챌린지 · 우리동네체감온도</div>
