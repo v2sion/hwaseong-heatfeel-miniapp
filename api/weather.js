@@ -1,8 +1,6 @@
 // GET /api/weather?lat=..&lon=..
 // OpenWeatherMap Classic Weather API 프록시. API 키를 클라이언트에 노출하지 않기 위해 서버에서만 호출한다.
-// 1단계(동탄 검증) 범위: 좌표 1개 → feels_like 반환. 전국 226개 캐싱은 2단계에서 배치/크론으로 확장 예정.
-
-const DONGTAN_COORD = { lat: 37.2002, lon: 127.0730 };
+const DEFAULT_COORD = { lat: 37.500889, lon: 127.035491 }; // 강남구 역삼1동
 
 export default async function handler(req, res) {
   // 앱인토스로 패키징되면 프론트엔드가 Toss 도메인(apps.tossmini.com 등)에서 서빙되어
@@ -15,8 +13,8 @@ export default async function handler(req, res) {
 
   const lat = parseFloat(req.query.lat);
   const lon = parseFloat(req.query.lon);
-  const useLat = Number.isFinite(lat) ? lat : DONGTAN_COORD.lat;
-  const useLon = Number.isFinite(lon) ? lon : DONGTAN_COORD.lon;
+  const useLat = Number.isFinite(lat) ? lat : DEFAULT_COORD.lat;
+  const useLon = Number.isFinite(lon) ? lon : DEFAULT_COORD.lon;
 
   if (Math.abs(useLat) > 90 || Math.abs(useLon) > 180) {
     return res.status(400).json({ error: '좌표 범위가 올바르지 않습니다.' });

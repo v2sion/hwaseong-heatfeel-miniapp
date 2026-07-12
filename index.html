@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <title>오늘 우리동네 체감온도 - 미니앱 프로토타입</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   /* ============================================================
      DESIGN TOKENS
@@ -592,18 +590,13 @@
     box-shadow:var(--shadow-card);
     border:1px solid var(--ink-100);
   }
-  .share-btn.kakao{
-    background:#FEE500;
-    color:#3C1E1E;
-    box-shadow:0 4px 14px rgba(254,229,0,0.45);
+  .share-btn.native{
+    background:var(--heat-color); /* color-mix() 미지원 브라우저 대체값 */
+    background:linear-gradient(135deg, var(--heat-color), color-mix(in oklch, var(--heat-color) 65%, black));
+    color:var(--white);
+    box-shadow:0 8px 20px color-mix(in oklch, var(--heat-color) 32%, transparent);
   }
-  .share-btn.kakao:active{ transform:translateY(1px); }
-  .share-btn.copy{
-    background:var(--white);
-    color:var(--ink-700);
-    box-shadow:var(--shadow-card);
-    border:1px solid var(--ink-100);
-  }
+  .share-btn.native:active{ transform:translateY(1px); }
 
   .attribution{
     display:inline-flex;
@@ -702,8 +695,8 @@
     line-height:1.6;
   }
 
-  /* ---------- 위치정보 최초 이용 고지 모달 ---------- */
-  .consent-overlay{
+  /* ---------- 위치정보 최초 이용 고지 모달 / 체감온도 색상 안내 모달 (공통 하단시트 패턴) ---------- */
+  .consent-overlay, .bracket-info-overlay{
     position:absolute;
     inset:0;
     background:rgba(25,31,40,0.48);
@@ -714,8 +707,8 @@
     pointer-events:none;
     transition:opacity .2s;
   }
-  .consent-overlay.show{ opacity:1; pointer-events:auto; }
-  .consent-sheet{
+  .consent-overlay.show, .bracket-info-overlay.show{ opacity:1; pointer-events:auto; }
+  .consent-sheet, .bracket-info-sheet{
     width:100%;
     background:var(--white);
     border-radius:var(--radius-lg) var(--radius-lg) 0 0;
@@ -724,8 +717,8 @@
     transform:translateY(16px);
     transition:transform .25s cubic-bezier(.16,1,.3,1);
   }
-  .consent-overlay.show .consent-sheet{ transform:translateY(0); }
-  .consent-sheet .sheet-grabber{
+  .consent-overlay.show .consent-sheet, .bracket-info-overlay.show .bracket-info-sheet{ transform:translateY(0); }
+  .consent-sheet .sheet-grabber, .bracket-info-sheet .sheet-grabber{
     width:36px; height:4px;
     border-radius:var(--radius-pill);
     background:var(--ink-100);
@@ -744,14 +737,14 @@
     background:var(--mint-700);
     box-shadow:0 0 0 6px rgba(4,158,136,0.14);
   }
-  .consent-sheet h3{
+  .consent-sheet h3, .bracket-info-sheet h3{
     margin:0 0 8px;
     font-size:18px;
     font-weight:800;
     color:var(--ink-900);
     line-height:1.4;
   }
-  .consent-sheet p{
+  .consent-sheet p, .bracket-info-sheet p{
     margin:0 0 22px;
     font-size:14px;
     line-height:1.6;
@@ -770,6 +763,35 @@
     cursor:pointer;
     min-height:44px;
   }
+
+  /* 체감온도 색상 안내 아이콘/범례 */
+  .info-icon{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:18px; height:18px;
+    border:none;
+    border-radius:50%;
+    background:var(--ink-100);
+    color:var(--ink-500);
+    font-size:12px;
+    line-height:1;
+    cursor:pointer;
+    vertical-align:middle;
+    padding:0;
+  }
+  .bracket-info-sheet .primary-btn{ box-shadow:none; min-height:52px; font-size:16px; margin-top:4px; }
+  .bracket-legend{ display:flex; flex-direction:column; gap:14px; margin-bottom:24px; }
+  .bracket-row{ display:flex; align-items:center; gap:12px; }
+  .bracket-row .swatch{
+    width:28px; height:28px;
+    border-radius:var(--radius-pill);
+    flex-shrink:0;
+    box-shadow:inset 0 0 0 1px rgba(25,31,40,0.08);
+  }
+  .bracket-row .bracket-text{ display:flex; flex-direction:column; }
+  .bracket-row .bracket-text strong{ font-size:14px; font-weight:700; color:var(--ink-900); }
+  .bracket-row .bracket-text span{ font-size:12.5px; color:var(--ink-500); margin-top:1px; }
 
   .footer-watermark{
     margin-top:auto;
@@ -837,7 +859,7 @@
       <div class="hero-wrap">
         <span class="rank-badge">
           <span class="dot"></span>
-          <span id="s1-rank-badge-text">화성시, 오늘 전국 226개 시군구 중 상위 7%</span>
+          <span id="s1-rank-badge-text">강남구, 오늘 전국 256개 시군구 중 상위 7%</span>
         </span>
 
         <div class="data-error-banner" id="data-error-banner">
@@ -846,7 +868,7 @@
         </div>
 
         <div class="temp-hero">
-          <div class="label">지금 체감온도</div>
+          <div class="label">지금 체감온도 <button class="info-icon" onclick="openBracketInfo()" aria-label="체감온도 색상 안내">ⓘ</button></div>
           <div class="value"><span id="s1-temp">34</span>°</div>
           <div class="sub" id="s1-sub">기상청 동네예보 기준 · 마지막 업데이트 방금 전</div>
         </div>
@@ -854,14 +876,14 @@
         <div class="hook-card">
           <span class="tag">오늘의 체감 코멘트</span>
           <p id="s1-hook-copy">
-            화성시, 오늘은 <span class="accent">동남아 여행</span> 갈 필요 없는<br/>
+            강남구, 오늘은 <span class="accent">동남아 여행</span> 갈 필요 없는<br/>
             동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
           </p>
         </div>
 
         <div class="cta-wrap">
           <button class="primary-btn" onclick="goToScreen(2)">우리 동네 순위 자세히 보기 →</button>
-          <div class="helper">전국 시/군/구, <span id="s1-helper-region">화성시</span> 내 동 단위까지 비교해보세요</div>
+          <div class="helper">전국 시/군/구, <span id="s1-helper-region">강남구</span> 내 동 단위까지 비교해보세요</div>
           <div style="text-align:center;margin-top:4px;">
             <a class="attribution" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
           </div>
@@ -888,9 +910,9 @@
           <div id="city-bar-list"></div>
         </div>
 
-        <!-- 동 단위: 화성시 내 동 리스트 -->
+        <!-- 동 단위: 강남구 내 동 리스트 -->
         <div class="rank-panel" id="panel-dong">
-          <div class="section-title"><span id="s2-dong-title-region">화성시</span> 동별 체감온도 <small>평균 <span id="hs-avg-temp-label"></span>° 대비</small></div>
+          <div class="section-title"><span id="s2-dong-title-region">강남구</span> 동별 체감온도 <small>평균 <span id="hs-avg-temp-label"></span>° 대비</small></div>
           <div id="dong-list"></div>
         </div>
 
@@ -914,23 +936,22 @@
             <span id="s3-date"></span>
           </div>
           <div class="region-name">
-            <span class="name-text" id="s3-region-name">화성시</span>
+            <span class="name-text" id="s3-region-name">강남구</span>
             <span class="badge" id="s3-rank-badge">상위 7%</span>
           </div>
           <div class="big-temp"><span id="s3-temp">34</span>°</div>
-          <div class="rank-line" id="s3-rank-line">전국 226개 시군구 중 16위</div>
+          <div class="rank-line" id="s3-rank-line">전국 256개 시군구 중 16위</div>
           <div class="hook" id="s3-hook-copy">
-            화성시, 오늘은 동남아 여행 갈 필요 없는 동남아 그 자체.<br/>
+            강남구, 오늘은 동남아 여행 갈 필요 없는 동남아 그 자체.<br/>
             러닝하면 찜질방에서 뛰는 날씨!
           </div>
-          <div class="hashtag" id="s3-hashtag">#오늘체감온도 #화성찜질방 #체감온도챌린지</div>
+          <div class="hashtag" id="s3-hashtag">#오늘체감온도챌린지 · 우리동네체감온도</div>
           <a class="attribution" style="margin-top:4px; color:rgba(255,255,255,.75);" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
         </div>
 
         <div class="share-actions">
           <button class="share-btn save" onclick="saveShareCardImage()" aria-label="이미지로 저장">이미지 저장</button>
-          <button class="share-btn kakao" onclick="shareToKakao()" aria-label="카카오톡으로 공유">카카오톡 공유</button>
-          <button class="share-btn copy" onclick="copyShareLink()" aria-label="링크 복사">링크 복사</button>
+          <button class="share-btn native" onclick="shareResult()" aria-label="공유하기">공유하기</button>
         </div>
 
         <div class="footer-watermark" id="s3-watermark">#오늘체감온도챌린지 · 우리동네체감온도</div>
@@ -948,11 +969,27 @@
       <div class="sheet-grabber"></div>
       <div class="consent-icon"><span class="dot"></span></div>
       <h3>내 동네 체감온도, 위치 허용하고 볼까요?</h3>
-      <p>내 위치 기준 체감온도와 전국·동네 순위를 보여드리기 위해 위치 정보를 사용해요. 위치 정보는 순위 계산에만 쓰이고 별도로 저장하지 않아요. 허용하지 않아도 기본 지역(화성시) 기준으로 이용할 수 있어요.</p>
+      <p>내 위치 기준 체감온도와 전국·동네 순위를 보여드리기 위해 위치 정보를 사용해요. 위치 정보는 순위 계산에만 쓰이고 별도로 저장하지 않아요. 허용하지 않아도 기본 지역(강남구) 기준으로 이용할 수 있어요.</p>
       <div class="consent-actions">
         <button class="primary-btn" onclick="onConsentAllow()" aria-label="내 동네 온도 확인하기">내 동네 온도 확인하기</button>
         <button class="consent-skip" onclick="onConsentSkip()" aria-label="기본 지역으로 보기">괜찮아요, 기본 지역으로 볼게요</button>
       </div>
+    </div>
+  </div>
+
+  <div class="bracket-info-overlay" id="bracket-info-overlay">
+    <div class="bracket-info-sheet">
+      <div class="sheet-grabber"></div>
+      <h3>체감온도 색상 안내</h3>
+      <p>색깔로 지금 더위가 어느 정도인지 한눈에 보여드려요.</p>
+      <div class="bracket-legend">
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-cool)"></span><div class="bracket-text"><strong>쾌적</strong><span>체감 33°C 미만</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-hot)"></span><div class="bracket-text"><strong>더움</strong><span>체감 33°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-veryhot)"></span><div class="bracket-text"><strong>매우 더움</strong><span>체감 35°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-extreme)"></span><div class="bracket-text"><strong>폭염</strong><span>체감 38°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-tropicalnight)"></span><div class="bracket-text"><strong>열대야</strong><span>밤 9시~6시, 체감 25°C 이상</span></div></div>
+      </div>
+      <button class="primary-btn" onclick="closeBracketInfo()">확인했어요</button>
     </div>
   </div>
 </div>

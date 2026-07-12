@@ -1,4 +1,5 @@
 import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets } from '@apps-in-toss/web-framework';
+import html2canvas from 'html2canvas-pro';
 
 // 앱인토스로 패키징되면 정적 자산이 Toss 도메인(apps.tossmini.com 등)에서 서빙되므로,
 // 상대경로 fetch('/api/...')는 그 도메인에서 API를 찾게 되어 깨진다. API는 계속 이
@@ -47,14 +48,13 @@ function initSafeArea(){
 ============================================================ */
 
 // 공통 - 우리 동네(사용자 위치) 정보
-// 실제 위치 API 연동 전까지 "화성시(동탄)"로 고정. 2026-02 화성시 4구 분리로 행정구역상
-// 정식 명칭은 "화성시동탄구"이므로, 화면 문구는 친숙한 MOCK_REGION_NAME("화성시")을 쓰고
+// 실제 위치 API 연동 전까지 "강남구(역삼1동)"로 고정. 화면 문구는 MOCK_REGION_NAME을 쓰고
 // /api/ranking·/api/dong-ranking 조회에는 실제 코드(MOCK_REGION_MATCH_NAME/MOCK_MY_CITY_CODE)를 쓴다.
-const MOCK_REGION_NAME        = "화성시";              // 화면 표시용 (뱃지/후킹카피/공유카드)
-const MOCK_REGION_MATCH_NAME  = "화성시동탄구";        // /api/ranking 응답에서 내 지역을 찾을 때 쓰는 실제 행정구역명
-const MOCK_MY_CITY_CODE       = "41597";               // 화성시동탄구 시군구 코드 (/api/dong-ranking 조회용)
-const MOCK_MY_DONG_NAME       = "동탄4동";             // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
-const MOCK_COORD              = { lat: 37.2002, lon: 127.0730 }; // 동탄 좌표, 위치 연동 실패 시 폴백
+const MOCK_REGION_NAME        = "강남구";              // 화면 표시용 (뱃지/후킹카피/공유카드)
+const MOCK_REGION_MATCH_NAME  = "강남구";              // /api/ranking 응답에서 내 지역을 찾을 때 쓰는 실제 행정구역명
+const MOCK_MY_CITY_CODE       = "11680";               // 강남구 시군구 코드 (/api/dong-ranking 조회용)
+const MOCK_MY_DONG_NAME       = "역삼1동";             // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
+const MOCK_COORD              = { lat: 37.500889, lon: 127.035491 }; // 역삼1동 좌표, 위치 연동 실패 시 폴백
 const MOCK_FEELS_LIKE_TEMP    = 34;                     // 체감온도 (°C) - /api/weather 연동 실패 시 폴백
 const MOCK_TOTAL_REGIONS      = 256;                    // 전국 시군구 총 개수 (2026-07 기준)
 const MOCK_RANK_PERCENT       = 7;                       // 상위 % (더울수록 상위)
@@ -62,7 +62,7 @@ const MOCK_CITY_RANK          = 16;                      // 전국 체감온도 
 const MOCK_UPDATED_AT_LABEL   = "오늘 15:00 기준";
 const MOCK_CHALLENGE_HASHTAG  = "#오늘체감온도챌린지 · 우리동네체감온도"; // 화면3 하단 워터마크 자리
 
-// 화면2 - 시 단위: 전국 시군구 체감온도 mock 순위 (상위 3 + 화성시 인근 구간)
+// 화면2 - 시 단위: 전국 시군구 체감온도 mock 순위 (상위 3 + 강남구 인근 구간)
 // isMe: true 인 항목이 강조 표시됨
 const MOCK_CITY_RANKING = [
   { rank: 1,  name: "포항시 남구", temp: 37.2, isMe:false },
@@ -70,23 +70,23 @@ const MOCK_CITY_RANKING = [
   { rank: 3,  name: "문경시", temp: 36.5, isMe:false },
   { rank: "...", name: null, temp: null, isMe:false }, // 구간 생략 표시
   { rank: 15, name: "안성시", temp: 34.3, isMe:false },
-  { rank: 16, name: "화성시", temp: 34.0, isMe:true  },
+  { rank: 16, name: "강남구", temp: 34.0, isMe:true  },
   { rank: 17, name: "평택시", temp: 33.9, isMe:false }
 ];
 
-// 화면2 - 동 단위: 화성시 내 동/읍/면 체감온도 mock (화성시 평균 대비 비교수치 포함)
-const MOCK_HS_AVERAGE_TEMP = 32.8; // 화성시 전체 평균 체감온도 (동 리스트 비교 기준값)
+// 화면2 - 동 단위: 강남구 내 동 체감온도 mock (강남구 평균 대비 비교수치 포함)
+const MOCK_HS_AVERAGE_TEMP = 32.8; // 강남구 전체 평균 체감온도 (동 리스트 비교 기준값)
 const MOCK_DONG_RANKING = [
-  { rank: 1, name: "동탄4동", temp: 34.0, isMe:true  },
-  { rank: 2, name: "동탄2동", temp: 33.5, isMe:false },
-  { rank: 3, name: "봉담읍",  temp: 33.2, isMe:false },
-  { rank: 4, name: "향남읍",  temp: 32.9, isMe:false },
-  { rank: 5, name: "남양읍",  temp: 32.5, isMe:false },
-  { rank: 6, name: "서신면",  temp: 32.0, isMe:false }
+  { rank: 1, name: "역삼1동", temp: 34.0, isMe:true  },
+  { rank: 2, name: "논현1동", temp: 33.6, isMe:false },
+  { rank: 3, name: "대치1동", temp: 33.2, isMe:false },
+  { rank: 4, name: "삼성1동", temp: 32.9, isMe:false },
+  { rank: 5, name: "청담동",  temp: 32.5, isMe:false },
+  { rank: 6, name: "개포2동", temp: 32.0, isMe:false }
 ];
 
 // 실제 위치(navigator.geolocation + /api/nearest-region) 연동 성공 시 교체되는 "내 위치" 상태.
-// 실패/거부/미지원 시 MOCK 값(화성시/동탄)을 그대로 사용한다 - resolveMyLocation() 참고.
+// 실패/거부/미지원 시 MOCK 값(강남구/역삼1동)을 그대로 사용한다 - resolveMyLocation() 참고.
 let currentCoord = { ...MOCK_COORD };
 let currentRegionName = MOCK_REGION_NAME;             // 화면 표시용 지역명
 let currentRegionMatchName = MOCK_REGION_MATCH_NAME;  // /api/ranking에서 내 지역을 찾을 때 쓰는 실제 행정구역명
@@ -472,14 +472,17 @@ function showToast(msg){
 }
 
 /* ============================================================
-   공유 기능: 이미지 저장 / 카카오톡 공유
+   공유 기능: 이미지 저장 / 기본 공유하기
 ============================================================ */
 
 // 공유카드를 캡처해서 PNG로 다운로드. 서버/외부 API 없이 클라이언트에서 완결.
+// html2canvas(원본)는 oklch()/color-mix() 같은 최신 CSS 색상 함수를 못 읽어서
+// "Attempting to parse an unsupported color function" 에러로 항상 실패했다 -
+// 이 프로젝트 색상 시스템 전체가 oklch 기반이라 html2canvas-pro(포크, 최신 CSS 색상 함수 지원)로 교체.
 async function saveShareCardImage(){
   trackClick({ log_name: 'save_image' });
   const card = document.querySelector('#screen-3 .share-card');
-  if(!card || typeof html2canvas !== 'function'){
+  if(!card){
     showToast('이미지 저장 기능을 불러오지 못했습니다');
     return;
   }
@@ -496,54 +499,31 @@ async function saveShareCardImage(){
   }
 }
 
-// 카카오 JS 키는 서버(/api/config)에서 받아온다 - 커밋된 코드에 하드코딩하지 않기 위함.
-let kakaoReady = false;
-async function initKakao(){
-  try{
-    const res = await fetch(`${API_BASE}/api/config`);
-    if(!res.ok) return;
-    const { kakaoJsKey } = await res.json();
-    if(!kakaoJsKey || typeof Kakao === 'undefined') return;
-    Kakao.init(kakaoJsKey);
-    kakaoReady = Kakao.isInitialized();
-  }catch(err){
-    console.warn('카카오 SDK 초기화 실패:', err);
-  }
-}
+// 안드로이드/iOS 단말 기본 공유 시트(어떤 앱으로 공유할지 사용자가 고르는 OS 팝업).
+// 지원하지 않는 환경(주로 데스크톱 브라우저)에서는 클립보드 복사로 대체한다.
+async function shareResult(){
+  trackClick({ log_name: 'share_native' });
+  const title = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`;
+  const text = currentHookCopyLines.join(' ');
 
-function shareToKakao(){
-  trackClick({ log_name: 'share_kakao' });
-  if(!kakaoReady){
-    showToast('카카오톡 공유 설정이 아직 준비되지 않았습니다');
-    return;
+  if(navigator.share){
+    try{
+      await navigator.share({ title, text, url: location.href });
+      return;
+    }catch(err){
+      if(err.name === 'AbortError') return; // 사용자가 공유 시트에서 취소함 - 실패 아님
+      console.warn('공유 시트 호출 실패, 클립보드 복사로 대체:', err);
+    }
   }
-  Kakao.Share.sendDefault({
-    objectType: 'feed',
-    content: {
-      title: `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`,
-      description: currentHookCopyLines.join(' '),
-      imageUrl: `${location.origin}/logo.png`,
-      link: { mobileWebUrl: location.href, webUrl: location.href },
-    },
-    buttons: [
-      { title: '나도 확인하기', link: { mobileWebUrl: location.href, webUrl: location.href } },
-    ],
-  });
-}
 
-// @apps-in-toss/web-framework(WebView 전용 패키지)에는 범용 네이티브 공유 시트가 없어
-// (React Native/Granite 전용인 native-modules의 share()만 존재), 대신 클립보드 복사로
-// "카카오톡 외 공유 채널"을 제공한다. 앱인토스 클립보드 브릿지 우선, 실패 시 웹 Clipboard API로 대체.
-async function copyShareLink(){
-  trackClick({ log_name: 'share_copy_link' });
-  const text = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%\n${currentHookCopyLines.join(' ')}\n${location.href}`;
+  const clipboardText = `${title}\n${text}\n${location.href}`;
   try{
-    await withTimeout(setClipboardText(text), 1500);
+    await withTimeout(setClipboardText(clipboardText), 1500);
   }catch(err){
     try{
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(clipboardText);
     }catch(err2){
-      showToast('링크 복사에 실패했습니다');
+      showToast('공유하기에 실패했습니다');
       return;
     }
   }
@@ -555,7 +535,7 @@ async function copyShareLink(){
    - navigator.geolocation으로 좌표를 얻고, /api/nearest-region으로
      가장 가까운 시군구/동을 찾아 currentRegionName 등을 실데이터로 교체한다.
    - 위치 미지원/권한거부/타임아웃 등 실패 시 안내 토스트만 띄우고
-     기존 MOCK 값(화성시/동탄)을 그대로 사용 - 비기능 요구사항의
+     기존 MOCK 값(강남구/역삼1동)을 그대로 사용 - 비기능 요구사항의
      "위치 권한 거부 시 fallback" 처리.
 ============================================================ */
 function getBrowserLocation(timeoutMs = 8000){
@@ -602,7 +582,7 @@ async function resolveMyLocation(){
     currentCityCode = data.city.code;
     currentMyDongName = data.dong ? data.dong.name : null;
   }catch(err){
-    // 위치 미지원/권한거부/타임아웃 등 - 기본 지역(화성시/동탄)으로 계속 동작
+    // 위치 미지원/권한거부/타임아웃 등 - 기본 지역(강남구/역삼1동)으로 계속 동작
     console.warn('위치 연동 실패, 기본 지역으로 표시:', err);
     showToast(`위치 정보를 사용할 수 없어 기본 지역(${MOCK_REGION_NAME})${pickParticle(MOCK_REGION_NAME, '을', '를')} 표시합니다`);
   }
@@ -615,7 +595,7 @@ async function initLocationAndData(){
   loadDongRanking();
 }
 
-// 위치 없이도 기본 지역(화성시/동탄) 기준으로 화면은 항상 뜬다 - 여기서는 데이터만 갱신
+// 위치 없이도 기본 지역(강남구/역삼1동) 기준으로 화면은 항상 뜬다 - 여기서는 데이터만 갱신
 function loadDataWithoutLocation(){
   loadRealWeather();
   loadRanking();
@@ -655,6 +635,16 @@ async function bootWithSkeleton(loaderFn){
   document.body.classList.add('is-loading');
   await Promise.race([loaderFn(), sleep(1200)]);
   document.body.classList.remove('is-loading');
+}
+
+// 체감온도 색상 안내 모달 - 색만으로 구분하기 어려운 사용자를 위해 구간별 온도 기준을 텍스트로 보여준다.
+function openBracketInfo(){
+  trackClick({ log_name: 'bracket_info_open' });
+  document.getElementById('bracket-info-overlay').classList.add('show');
+}
+
+function closeBracketInfo(){
+  document.getElementById('bracket-info-overlay').classList.remove('show');
 }
 
 function onConsentAllow(){
@@ -697,7 +687,6 @@ async function initUserKey(){
 
 renderAll();
 startLocationFlow();
-initKakao();
 initUserKey();
 initSafeArea();
 trackScreen({ log_name: 'screen_view', screen: currentScreenNum });
@@ -708,9 +697,10 @@ Object.assign(window, {
   goToScreen,
   switchRankTab,
   saveShareCardImage,
-  shareToKakao,
-  copyShareLink,
+  shareResult,
   onConsentAllow,
   onConsentSkip,
   retryDataLoad,
+  openBracketInfo,
+  closeBracketInfo,
 });
