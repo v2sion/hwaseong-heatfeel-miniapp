@@ -7,6 +7,7 @@ import { head } from '@vercel/blob';
 const LATEST_KEY = 'ranking/latest.json';
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
   try {
     const meta = await head(LATEST_KEY);
     const upstream = await fetch(`${meta.downloadUrl}?t=${Date.now()}`, { cache: 'no-store' });

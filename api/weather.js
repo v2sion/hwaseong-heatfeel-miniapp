@@ -5,6 +5,9 @@
 const DONGTAN_COORD = { lat: 37.2002, lon: 127.0730 };
 
 export default async function handler(req, res) {
+  // 앱인토스로 패키징되면 프론트엔드가 Toss 도메인(apps.tossmini.com 등)에서 서빙되어
+  // 이 API를 크로스 오리진으로 호출한다. 공개 날씨 데이터라 광범위 허용도 안전하다.
+  res.setHeader('Access-Control-Allow-Origin', '*');
   const apiKey = process.env.OPENWEATHERMAP_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'OPENWEATHERMAP_API_KEY가 설정되지 않았습니다.' });

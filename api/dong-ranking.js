@@ -28,6 +28,7 @@ async function readCached(cityCode) {
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
   const cityCode = req.query.city;
   if (!cityCode) {
     return res.status(400).json({ error: 'city 쿼리 파라미터(시군구 코드)가 필요합니다.' });

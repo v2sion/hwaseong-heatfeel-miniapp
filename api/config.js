@@ -4,6 +4,7 @@
 // Vercel 환경변수로 관리하기 위해 이 엔드포인트를 거친다.
 
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=600');
   return res.status(200).json({
     kakaoJsKey: process.env.KAKAO_JS_KEY || null,

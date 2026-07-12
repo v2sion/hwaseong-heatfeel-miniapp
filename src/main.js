@@ -1,5 +1,10 @@
 import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets } from '@apps-in-toss/web-framework';
 
+// 앱인토스로 패키징되면 정적 자산이 Toss 도메인(apps.tossmini.com 등)에서 서빙되므로,
+// 상대경로 fetch('/api/...')는 그 도메인에서 API를 찾게 되어 깨진다. API는 계속 이
+// Vercel 배포에 남아있으므로 항상 절대 URL로 호출한다(API 쪽엔 CORS 허용을 열어둠).
+const API_BASE = 'https://app-tau-ten-42.vercel.app';
+
 // 브릿지가 없는 일반 브라우저에서도 조용히 무시되도록 감싼 로깅 헬퍼.
 function trackScreen(params){ try{ Analytics.screen(params); }catch(err){} }
 function trackClick(params){ try{ Analytics.click(params); }catch(err){} }
@@ -325,7 +330,7 @@ function retryDataLoad(){
 ============================================================ */
 async function loadRealWeather(){
   try{
-    const url = `/api/weather?lat=${currentCoord.lat}&lon=${currentCoord.lon}`;
+    const url = `${API_BASE}/api/weather?lat=${currentCoord.lat}&lon=${currentCoord.lon}`;
     const res = await fetch(url);
     if(!res.ok) throw new Error(`weather ${res.status}`);
     const data = await res.json();
@@ -366,7 +371,7 @@ function buildCityRankingWindow(regions, meName){
 
 async function loadRanking(){
   try{
-    const res = await fetch('/api/ranking');
+    const res = await fetch(`${API_BASE}/api/ranking`);
     if(!res.ok) throw new Error(`ranking ${res.status}`);
     const data = await res.json();
     if(!Array.isArray(data.regions) || data.regions.length === 0) throw new Error('empty ranking payload');
@@ -394,7 +399,7 @@ async function loadRanking(){
 
 async function loadDongRanking(){
   try{
-    const res = await fetch(`/api/dong-ranking?city=${currentCityCode}`);
+    const res = await fetch(`${API_BASE}/api/dong-ranking?city=${currentCityCode}`);
     if(res.status === 404){
       // 해당 시군구는 동 단위 데이터셋 자체가 없는 경우 - API 실패가 아니라 별도 안내 상태
       dongDataUnavailable = true;
@@ -495,7 +500,7 @@ async function saveShareCardImage(){
 let kakaoReady = false;
 async function initKakao(){
   try{
-    const res = await fetch('/api/config');
+    const res = await fetch(`${API_BASE}/api/config`);
     if(!res.ok) return;
     const { kakaoJsKey } = await res.json();
     if(!kakaoJsKey || typeof Kakao === 'undefined') return;
@@ -587,7 +592,7 @@ async function resolveMyLocation(){
     const coord = await getDeviceLocation();
     currentCoord = coord;
 
-    const res = await fetch(`/api/nearest-region?lat=${coord.lat}&lon=${coord.lon}`);
+    const res = await fetch(`${API_BASE}/api/nearest-region?lat=${coord.lat}&lon=${coord.lon}`);
     if(!res.ok) throw new Error('nearest-region lookup failed');
     const data = await res.json();
     if(!data.city) throw new Error('no matching city');
