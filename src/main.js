@@ -1,3 +1,5 @@
+import { Accuracy, getCurrentLocation } from '@apps-in-toss/web-framework';
+
 /* ============================================================
    MOCK DATA
    - API 연동 전까지 사용하는 하드코딩 상수.
@@ -493,9 +495,24 @@ function getBrowserLocation(timeoutMs = 8000){
   });
 }
 
+async function getTossLocation(){
+  const res = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+  return { lat: res.coords.latitude, lon: res.coords.longitude };
+}
+
+// 앱인토스 WebView 안에서는 네이티브 브릿지(getCurrentLocation)를 우선 사용하고,
+// 브릿지가 없는 일반 브라우저(Vercel 배포본 단독 접속 등)에서는 브라우저 geolocation으로 대체한다.
+async function getDeviceLocation(){
+  try{
+    return await getTossLocation();
+  }catch(err){
+    return await getBrowserLocation();
+  }
+}
+
 async function resolveMyLocation(){
   try{
-    const coord = await getBrowserLocation();
+    const coord = await getDeviceLocation();
     currentCoord = coord;
 
     const res = await fetch(`/api/nearest-region?lat=${coord.lat}&lon=${coord.lon}`);
