@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent } from '@apps-in-toss/web-framework';
 
 /* ============================================================
    MOCK DATA
@@ -395,8 +395,25 @@ async function loadDongRanking(){
 /* ============================================================
    NAVIGATION / INTERACTION
 ============================================================ */
+let currentScreenNum = 1;
 function goToScreen(n){
+  currentScreenNum = n;
   document.getElementById('screens').className = 'screens at-' + n;
+}
+
+// 앱인토스 WebView의 하드웨어/제스처 뒤로가기를 화면 스택 이동으로 처리한다(상세→메인 등).
+// 루트 화면(1)에서는 아무 것도 하지 않아 기본 종료 동작에 맡긴다.
+// 브릿지가 없는 일반 브라우저(로컬/Vercel 단독 접속)에서는 등록 실패를 조용히 무시한다.
+try{
+  graniteEvent.addEventListener('backEvent', {
+    onEvent: () => {
+      if(currentScreenNum > 1){
+        goToScreen(currentScreenNum - 1);
+      }
+    },
+  });
+}catch(err){
+  console.warn('backEvent 리스너 등록 실패(브라우저 환경):', err);
 }
 
 function switchRankTab(which){
