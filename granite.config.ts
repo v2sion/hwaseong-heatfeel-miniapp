@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: '무더위 체감 랭킹',
     primaryColor: '#FF6B35',
-    icon: null, // TODO: 앱 아이콘 이미지 경로로 교체
+    icon: 'https://app-tau-ten-42.vercel.app/logo.png', // 디자인 산출물의 final_app_icon_light.png
   },
   web: {
     host: 'localhost',
