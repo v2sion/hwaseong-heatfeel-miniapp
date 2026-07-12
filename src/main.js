@@ -1,4 +1,8 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics } from '@apps-in-toss/web-framework';
+
+// 브릿지가 없는 일반 브라우저에서도 조용히 무시되도록 감싼 로깅 헬퍼.
+function trackScreen(params){ try{ Analytics.screen(params); }catch(err){} }
+function trackClick(params){ try{ Analytics.click(params); }catch(err){} }
 
 /* ============================================================
    MOCK DATA
@@ -399,6 +403,7 @@ let currentScreenNum = 1;
 function goToScreen(n){
   currentScreenNum = n;
   document.getElementById('screens').className = 'screens at-' + n;
+  trackScreen({ log_name: 'screen_view', screen: n });
 }
 
 // 앱인토스 WebView의 하드웨어/제스처 뒤로가기를 화면 스택 이동으로 처리한다(상세→메인 등).
@@ -438,6 +443,7 @@ function showToast(msg){
 
 // 공유카드를 캡처해서 PNG로 다운로드. 서버/외부 API 없이 클라이언트에서 완결.
 async function saveShareCardImage(){
+  trackClick({ log_name: 'save_image' });
   const card = document.querySelector('#screen-3 .share-card');
   if(!card || typeof html2canvas !== 'function'){
     showToast('이미지 저장 기능을 불러오지 못했습니다');
@@ -472,6 +478,7 @@ async function initKakao(){
 }
 
 function shareToKakao(){
+  trackClick({ log_name: 'share_kakao' });
   if(!kakaoReady){
     showToast('카카오톡 공유 설정이 아직 준비되지 않았습니다');
     return;
@@ -494,6 +501,7 @@ function shareToKakao(){
 // (React Native/Granite 전용인 native-modules의 share()만 존재), 대신 클립보드 복사로
 // "카카오톡 외 공유 채널"을 제공한다. 앱인토스 클립보드 브릿지 우선, 실패 시 웹 Clipboard API로 대체.
 async function copyShareLink(){
+  trackClick({ log_name: 'share_copy_link' });
   const text = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%\n${currentHookCopyLines.join(' ')}\n${location.href}`;
   try{
     await setClipboardText(text);
@@ -616,12 +624,14 @@ async function bootWithSkeleton(loaderFn){
 }
 
 function onConsentAllow(){
+  trackClick({ log_name: 'location_consent_allow' });
   setStoredConsent('allowed');
   document.getElementById('consent-overlay').classList.remove('show');
   bootWithSkeleton(initLocationAndData);
 }
 
 function onConsentSkip(){
+  trackClick({ log_name: 'location_consent_skip' });
   setStoredConsent('skipped');
   document.getElementById('consent-overlay').classList.remove('show');
   bootWithSkeleton(loadDataWithoutLocation);
@@ -655,6 +665,7 @@ renderAll();
 startLocationFlow();
 initKakao();
 initUserKey();
+trackScreen({ log_name: 'screen_view', screen: currentScreenNum });
 
 // ES 모듈은 top-level 선언이 전역(window)으로 노출되지 않는다.
 // index.html의 onclick="..." 인라인 핸들러가 참조하는 함수들만 명시적으로 노출한다.
