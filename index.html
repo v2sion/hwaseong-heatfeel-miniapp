@@ -51,6 +51,18 @@
     --shadow-float: 0 12px 28px rgba(255,122,61,0.28);
 
     --font: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+
+    /* 체감온도 구간 컬러 램프 (디자인시스템 v1) — 쾌적/더움/매우더움/폭염/열대야
+       뱃지 점·히어로 숫자·후킹카피 태그·CTA 버튼·랭킹 막대 등 "온도 데이터"에만 사용.
+       시/동 탭, "우리 동네" 칩 같은 UI 내비게이션은 브랜드 민트로 고정(아래서 별도 지정). */
+    --heat-cool:#049E88;
+    --heat-hot:oklch(85% 0.14 95);
+    --heat-veryhot:oklch(72% 0.18 55);
+    --heat-extreme:oklch(56% 0.22 25);
+    --heat-tropicalnight:oklch(32% 0.11 292);
+
+    /* JS가 현재 체감온도 구간에 맞춰 매 렌더마다 갱신하는 전역 색상. 초기값은 mock(34도, 더움) 기준 */
+    --heat-color: var(--heat-hot);
   }
 
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -149,8 +161,9 @@
   }
   .rank-badge .dot{
     width:6px; height:6px; border-radius:50%;
-    background:var(--orange-500);
+    background:var(--heat-color);
     flex-shrink:0;
+    transition:background .3s ease;
   }
   .rank-badge span:last-child{
     min-width:0;
@@ -174,10 +187,11 @@
     font-weight:800;
     line-height:1;
     letter-spacing:-4px;
-    background:linear-gradient(180deg, var(--orange-500), var(--orange-600));
+    background:linear-gradient(180deg, var(--heat-color), color-mix(in oklch, var(--heat-color) 65%, black));
     -webkit-background-clip:text;
     background-clip:text;
     color:transparent;
+    transition:background .3s ease;
   }
   .temp-hero .sub{
     margin-top:10px;
@@ -205,12 +219,13 @@
     display:inline-block;
     font-size:12px;
     font-weight:700;
-    color:var(--orange-600);
-    background:var(--orange-100);
+    color:color-mix(in oklch, var(--heat-color) 55%, black);
+    background:color-mix(in oklch, var(--heat-color) 20%, white);
     padding:5px 10px;
     border-radius:var(--radius-pill);
     margin-bottom:10px;
     position:relative;
+    transition:color .3s ease, background .3s ease;
   }
   .hook-card p{
     position:relative;
@@ -220,20 +235,21 @@
     line-height:1.42;
     color:var(--ink-900);
   }
-  .hook-card p .accent{ color:var(--orange-500); }
+  .hook-card p .accent{ color:color-mix(in oklch, var(--heat-color) 65%, black); }
 
   .primary-btn{
     width:100%;
     border:none;
     border-radius:var(--radius-md);
-    background:linear-gradient(135deg, var(--orange-500), var(--orange-600));
+    background:linear-gradient(135deg, var(--heat-color), color-mix(in oklch, var(--heat-color) 65%, black));
     color:var(--white);
     font-size:16px;
     font-weight:700;
     padding:18px 20px;
     cursor:pointer;
-    box-shadow:var(--shadow-float);
+    box-shadow:0 12px 28px color-mix(in oklch, var(--heat-color) 32%, transparent);
     display:flex; align-items:center; justify-content:center; gap:6px;
+    transition:background .3s ease, box-shadow .3s ease;
   }
   .primary-btn:active{ transform:translateY(1px); }
   .cta-wrap{ margin-top:26px; padding-bottom:12px; }
@@ -302,11 +318,10 @@
     flex-shrink:0;
     font-size:13px;
     font-weight:700;
-    color:var(--ink-300);
+    color:color-mix(in oklch, var(--row-heat, var(--ink-300)) 75%, black);
     text-align:center;
     font-variant-numeric:tabular-nums;
   }
-  .bar-row.highlight .rank-no{ color:var(--orange-600); }
   .bar-row .bar-main{ flex:1; min-width:0; }
   .bar-row .bar-meta{
     display:flex;
@@ -330,7 +345,7 @@
     text-overflow:ellipsis;
     min-width:0;
   }
-  .bar-row.highlight .bar-name{ color:var(--orange-600); font-weight:800; }
+  .bar-row.highlight .bar-name{ font-weight:800; }
   .bar-row .me-chip{
     flex-shrink:0;
     font-size:11px;
@@ -342,12 +357,11 @@
   }
   .bar-row .bar-temp{
     font-weight:700;
-    color:var(--ink-500);
+    color:color-mix(in oklch, var(--row-heat, var(--ink-500)) 75%, black);
     flex-shrink:0;
     margin-left:8px;
     font-variant-numeric:tabular-nums;
   }
-  .bar-row.highlight .bar-temp{ color:var(--orange-600); }
   .bar-track{
     height:10px;
     background:var(--ink-100);
@@ -357,10 +371,7 @@
   .bar-fill{
     height:100%;
     border-radius:var(--radius-pill);
-    background:linear-gradient(90deg, var(--ink-300), var(--ink-300));
-  }
-  .bar-row.highlight .bar-fill{
-    background:linear-gradient(90deg, var(--orange-400), var(--orange-600));
+    background:var(--row-heat, var(--ink-300));
   }
   .rank-ellipsis{
     text-align:center;
@@ -393,13 +404,14 @@
     padding:0 7px;
     flex-shrink:0;
     border-radius:var(--radius-pill);
-    background:var(--ink-100);
-    color:var(--ink-500);
+    background:color-mix(in oklch, var(--row-heat, var(--ink-100)) 30%, white);
+    color:color-mix(in oklch, var(--row-heat, var(--ink-500)) 70%, black);
     font-size:13px;
     font-weight:700;
     font-variant-numeric:tabular-nums;
     display:flex; align-items:center; justify-content:center;
   }
+  /* "우리 동네" 칩은 온도와 무관하게 브랜드 민트로 고정 (UI 내비게이션/식별 요소) */
   .dong-row.highlight .rank-chip{
     background:linear-gradient(135deg, var(--mint-500), var(--mint-700));
     color:var(--white);
@@ -428,7 +440,7 @@
   .dong-row .dong-temp{
     font-size:16px;
     font-weight:800;
-    color:var(--ink-900);
+    color:color-mix(in oklch, var(--row-heat, var(--ink-900)) 75%, black);
     font-variant-numeric:tabular-nums;
   }
   .dong-row .dong-diff{
@@ -455,7 +467,8 @@
     margin-top:18px;
     border-radius:var(--radius-lg);
     padding:30px 26px 26px;
-    background:linear-gradient(160deg, var(--mint-500) 0%, var(--mint-700) 55%, var(--orange-500) 130%);
+    /* 디자인시스템 v1: 실제 지금 온도와 무관하게, 브랜드 시그니처로 체감온도 스펙트럼 전체(쾌적→열대야)를 보여주는 고정 그라디언트 */
+    background:linear-gradient(160deg, var(--heat-cool) 0%, var(--heat-hot) 35%, var(--heat-veryhot) 65%, var(--heat-extreme) 100%);
     color:var(--white);
     box-shadow:var(--shadow-card);
     position:relative;
@@ -592,6 +605,68 @@
     z-index:20;
   }
   .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  /* ---------- 데이터 로드 실패 안내 배너 (예외처리) ---------- */
+  .data-error-banner{
+    display:none;
+    align-items:center;
+    gap:10px;
+    margin-top:14px;
+    padding:12px 14px;
+    background:color-mix(in oklch, var(--heat-extreme) 10%, white);
+    border:1px solid color-mix(in oklch, var(--heat-extreme) 28%, white);
+    border-radius:var(--radius-md);
+  }
+  .data-error-banner.show{ display:flex; }
+  .data-error-banner .msg{
+    flex:1;
+    min-width:0;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink-700);
+  }
+  .data-error-banner button{
+    flex-shrink:0;
+    border:none;
+    background:var(--ink-900);
+    color:#fff;
+    font-size:12px;
+    font-weight:700;
+    padding:8px 14px;
+    border-radius:var(--radius-pill);
+    cursor:pointer;
+  }
+
+  /* ---------- 동 단위 데이터 없음 (예외처리) ---------- */
+  .dong-empty-state{
+    text-align:center;
+    padding:44px 24px;
+    color:var(--ink-300);
+  }
+  .dong-empty-icon{
+    width:36px; height:36px;
+    margin:0 auto 12px;
+    border-radius:var(--radius-pill);
+    background:var(--ink-100);
+    position:relative;
+  }
+  .dong-empty-icon::after{
+    content:"";
+    position:absolute; top:50%; left:50%;
+    width:14px; height:2px;
+    background:var(--ink-300);
+    transform:translate(-50%,-50%);
+  }
+  .dong-empty-title{
+    font-size:13px;
+    font-weight:800;
+    color:var(--ink-700);
+    margin-bottom:4px;
+  }
+  .dong-empty-desc{
+    font-size:12px;
+    line-height:1.6;
+  }
 
   /* ---------- 위치정보 최초 이용 고지 모달 ---------- */
   .consent-overlay{
@@ -730,6 +805,11 @@
           <span class="dot"></span>
           <span id="s1-rank-badge-text">화성시, 오늘 전국 226개 시군구 중 상위 7%</span>
         </span>
+
+        <div class="data-error-banner" id="data-error-banner">
+          <span class="msg">정보를 불러오지 못했어요</span>
+          <button onclick="retryDataLoad()">재시도</button>
+        </div>
 
         <div class="temp-hero">
           <div class="label">지금 체감온도</div>
@@ -912,8 +992,41 @@ let currentHsAverageTemp = MOCK_HS_AVERAGE_TEMP;
 let currentDongRanking = MOCK_DONG_RANKING;
 
 /* ============================================================
-   후킹 카피 시스템 (F3): 체감온도 구간별 템플릿 조합형
+   체감온도 구간 시스템 (디자인시스템 v1 공용 브래킷)
    - 33도↑ 더움 / 35도↑ 매우 더움 / 38도↑ 폭염 / 열대야(21~06시 & 25도↑)
+   - 후킹카피 문구 선택, 뱃지·히어로·CTA·랭킹 막대 등의 "온도 색상"이
+     모두 이 하나의 구간 판정 로직(getHeatBracketKey)을 공유한다.
+============================================================ */
+function isNightHour(date = new Date()){
+  const h = date.getHours();
+  return h >= 21 || h < 6;
+}
+
+function getHeatBracketKey(feelsLikeTemp, night = isNightHour()){
+  if(night && feelsLikeTemp >= 25) return 'tropicalNight';
+  if(feelsLikeTemp >= 38) return 'extreme';
+  if(feelsLikeTemp >= 35) return 'veryHot';
+  if(feelsLikeTemp >= 33) return 'hot';
+  return 'cool';
+}
+
+// CSS :root의 --heat-* 변수와 1:1 대응 (뱃지 점·히어로 숫자·후킹카피 태그·CTA·랭킹 막대에만 사용,
+// 탭/"우리 동네" 칩 등 UI 내비게이션은 브랜드 민트 고정 - 각 CSS 규칙에서 별도 처리)
+const HEAT_BRACKET_COLOR_VAR = {
+  cool: '--heat-cool',
+  hot: '--heat-hot',
+  veryHot: '--heat-veryhot',
+  extreme: '--heat-extreme',
+  tropicalNight: '--heat-tropicalnight',
+};
+
+// 해당 온도의 CSS 변수 참조 문자열(예: "var(--heat-hot)")을 반환 - 인라인 style에 바로 쓸 수 있음
+function getHeatColorVarRef(feelsLikeTemp, night = isNightHour()){
+  return `var(${HEAT_BRACKET_COLOR_VAR[getHeatBracketKey(feelsLikeTemp, night)]})`;
+}
+
+/* ============================================================
+   후킹 카피 시스템 (F3): 체감온도 구간별 템플릿 조합형
    - 구간마다 문구 후보 여러 개 중 [지역명+반올림 온도]로 안정적으로 하나를 골라
      같은 조건에서는 새로고침해도 같은 문구가 나오되, 온도가 바뀌면 자동으로 갱신된다.
 ============================================================ */
@@ -934,15 +1047,10 @@ const HOOK_COPY_TEMPLATES = {
     ["{region}, 오늘은 동남아 여행 갈 필요 없는", "동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!"],
     ["{region}, 가만히 있어도 땀이 주르륵.", "아이스아메리카노는 선택 아닌 필수인 날씨!"],
   ],
-  normal: [ // 33도 미만
+  cool: [ // 33도 미만 - 쾌적
     ["{region}, 오늘은 그럭저럭 견딜만한", "더위예요. 그래도 수분 보충은 잊지 마세요!"],
   ],
 };
-
-function isNightHour(date = new Date()){
-  const h = date.getHours();
-  return h >= 21 || h < 6;
-}
 
 function pickTemplate(list, seedKey){
   let hash = 0;
@@ -951,13 +1059,7 @@ function pickTemplate(list, seedKey){
 }
 
 function getHookCopyLines(regionName, feelsLikeTemp){
-  let bracket;
-  if(isNightHour() && feelsLikeTemp >= 25) bracket = 'tropicalNight';
-  else if(feelsLikeTemp >= 38) bracket = 'extreme';
-  else if(feelsLikeTemp >= 35) bracket = 'veryHot';
-  else if(feelsLikeTemp >= 33) bracket = 'hot';
-  else bracket = 'normal';
-
+  const bracket = getHeatBracketKey(feelsLikeTemp);
   const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}`;
   const template = pickTemplate(HOOK_COPY_TEMPLATES[bracket], seedKey);
   return template.map(line => line.replace('{region}', regionName));
@@ -970,7 +1072,23 @@ let currentHookCopyLines = getHookCopyLines(currentRegionName, MOCK_FEELS_LIKE_T
 ============================================================ */
 function fmtTemp(t){ return t.toFixed(1).replace(/\.0$/, ""); }
 
+// 한글 받침 유무에 따라 조사를 고른다 (예: "화성시" -> "는", "강남구" -> "는", "관악구" -> "는", "종로구" -> "는", "성남시"+은/는 -> "는")
+function pickParticle(word, withBatchim, withoutBatchim){
+  const lastChar = word ? word[word.length - 1] : '';
+  const code = lastChar ? lastChar.charCodeAt(0) : 0;
+  if(code >= 0xAC00 && code <= 0xD7A3){
+    const hasBatchim = (code - 0xAC00) % 28 !== 0;
+    return hasBatchim ? withBatchim : withoutBatchim;
+  }
+  return withoutBatchim;
+}
+// word 뒤에 알맞은 조사를 바로 붙여서 반환 (word와 조사 사이에 다른 글자가 없을 때만 사용)
+function withParticle(word, withBatchim, withoutBatchim){
+  return word + pickParticle(word, withBatchim, withoutBatchim);
+}
+
 function renderScreen1(){
+  document.body.style.setProperty('--heat-color', getHeatColorVarRef(currentFeelsLike));
   document.getElementById('s1-rank-badge-text').textContent =
     `${currentRegionName}, 오늘 전국 ${currentTotalRegions}개 시군구 중 상위 ${currentRankPercent}%`;
   document.getElementById('s1-temp').textContent = fmtTemp(currentFeelsLike);
@@ -990,7 +1108,7 @@ function renderCityBarList(){
     if(r.rank === "...") return `<div class="rank-ellipsis">⋮</div>`;
     const pct = Math.max(8, Math.round((r.temp / maxTemp) * 100));
     return `
-      <div class="bar-row ${r.isMe ? 'highlight':''}">
+      <div class="bar-row ${r.isMe ? 'highlight':''}" style="--row-heat:${getHeatColorVarRef(r.temp)}">
         <div class="rank-no">${r.rank}</div>
         <div class="bar-main">
           <div class="bar-meta">
@@ -1006,16 +1124,31 @@ function renderCityBarList(){
   }).join('');
 }
 
+// /api/dong-ranking이 해당 도시에 동 데이터가 없다고(404) 응답했을 때 true - 예외처리 안내로 전환
+let dongDataUnavailable = false;
+
 function renderDongList(){
   document.getElementById('s2-dong-title-region').textContent = currentRegionName;
-  document.getElementById('hs-avg-temp-label').textContent = fmtTemp(currentHsAverageTemp);
   const wrap = document.getElementById('dong-list');
+
+  if(dongDataUnavailable){
+    document.getElementById('hs-avg-temp-label').textContent = '-';
+    wrap.innerHTML = `
+      <div class="dong-empty-state">
+        <div class="dong-empty-icon"></div>
+        <div class="dong-empty-title">동 단위 데이터 준비중</div>
+        <div class="dong-empty-desc">${withParticle(currentRegionName, '은', '는')} 아직 동 단위 비교를 제공하지 않아요.<br/>상위 행정구역(시/군/구) 기준으로 계속 이용해주세요.</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('hs-avg-temp-label').textContent = fmtTemp(currentHsAverageTemp);
   wrap.innerHTML = currentDongRanking.map(d=>{
     const diff = +(d.temp - currentHsAverageTemp).toFixed(1);
     const diffClass = diff >= 0 ? 'up' : 'down';
     const diffLabel = `${diff >= 0 ? '+' : ''}${diff}°`;
     return `
-      <div class="dong-row ${d.isMe ? 'highlight':''}">
+      <div class="dong-row ${d.isMe ? 'highlight':''}" style="--row-heat:${getHeatColorVarRef(d.temp)}">
         <div class="left">
           <div class="rank-chip">${d.rank}</div>
           <div>
@@ -1051,30 +1184,54 @@ function renderAll(){
 }
 
 /* ============================================================
+   데이터 로드 실패 안내 (예외처리)
+   - API가 실패해도 화면은 mock/마지막으로 알려진 값을 그대로 유지해 크래시를 막되,
+     "정보를 불러오지 못했어요" 배너 + 재시도 버튼으로 사용자에게 상황을 알린다.
+   - 날씨/랭킹 중 하나라도 살아있으면(성공) 배너는 자동으로 사라진다.
+============================================================ */
+let weatherLoadFailed = false;
+let rankingLoadFailed = false;
+
+function updateDataErrorBanner(){
+  const banner = document.getElementById('data-error-banner');
+  if(!banner) return;
+  banner.classList.toggle('show', weatherLoadFailed || rankingLoadFailed);
+}
+
+function retryDataLoad(){
+  loadRealWeather();
+  loadRanking();
+  loadDongRanking();
+}
+
+/* ============================================================
    실데이터 연동
-   - /api/weather: 동탄 좌표 1개의 실시간 체감온도 (화면1/3 큰 숫자)
-   - /api/ranking: 전국 250개 시군구 시간당 배치 결과 (화면1/2/3 순위·percentile)
-   - 각각 실패해도 서로 독립적으로 mock 값 폴백. 동 단위는 다음 단계에서 실데이터로 교체 예정.
+   - /api/weather: 내 좌표의 실시간 체감온도 (화면1/3 큰 숫자)
+   - /api/ranking: 전국 256개 시군구 시간당 배치 결과 (화면1/2/3 순위·percentile)
+   - 각각 실패해도 서로 독립적으로 mock/마지막 값 폴백.
 ============================================================ */
 async function loadRealWeather(){
   try{
     const url = `/api/weather?lat=${currentCoord.lat}&lon=${currentCoord.lon}`;
     const res = await fetch(url);
-    if(!res.ok) return;
+    if(!res.ok) throw new Error(`weather ${res.status}`);
     const data = await res.json();
-    if(typeof data.feelsLike !== 'number') return;
+    if(typeof data.feelsLike !== 'number') throw new Error('invalid weather payload');
 
     currentFeelsLike = data.feelsLike;
     const updated = new Date(data.updatedAt);
     currentUpdatedLabel = `${updated.getHours()}:${String(updated.getMinutes()).padStart(2,'0')} 기준 (실시간)`;
     currentHookCopyLines = getHookCopyLines(currentRegionName, currentFeelsLike);
+    weatherLoadFailed = false;
 
     renderScreen1();
     renderScreen3();
   }catch(err){
-    // 네트워크 오류 등 - mock 값으로 계속 동작
+    // 네트워크 오류 등 - mock/마지막 값으로 계속 동작하되 배너로 안내
     console.warn('실시간 날씨 연동 실패, mock 값 사용:', err);
+    weatherLoadFailed = true;
   }
+  updateDataErrorBanner();
 }
 
 // 전체 랭킹에서 상위 3위 + (필요 시 생략 표시) + 내 지역 주변 구간만 뽑아 화면2 막대 리스트 형태로 변환
@@ -1097,9 +1254,9 @@ function buildCityRankingWindow(regions, meName){
 async function loadRanking(){
   try{
     const res = await fetch('/api/ranking');
-    if(!res.ok) return;
+    if(!res.ok) throw new Error(`ranking ${res.status}`);
     const data = await res.json();
-    if(!Array.isArray(data.regions) || data.regions.length === 0) return;
+    if(!Array.isArray(data.regions) || data.regions.length === 0) throw new Error('empty ranking payload');
 
     const mine = data.regions.find(r => r.nameKo === currentRegionMatchName);
 
@@ -1109,23 +1266,37 @@ async function loadRanking(){
       currentRankPercent = mine.percentile;
       currentCityRank = mine.rank;
     }
+    rankingLoadFailed = false;
 
     renderScreen1();
     renderCityBarList();
     renderScreen3();
   }catch(err){
-    // 네트워크 오류 등 - mock 값으로 계속 동작
+    // 네트워크 오류 등 - mock/마지막 값으로 계속 동작하되 배너로 안내
     console.warn('전국 랭킹 연동 실패, mock 값 사용:', err);
+    rankingLoadFailed = true;
   }
+  updateDataErrorBanner();
 }
 
 async function loadDongRanking(){
   try{
     const res = await fetch(`/api/dong-ranking?city=${currentCityCode}`);
-    if(!res.ok) return;
+    if(res.status === 404){
+      // 해당 시군구는 동 단위 데이터셋 자체가 없는 경우 - API 실패가 아니라 별도 안내 상태
+      dongDataUnavailable = true;
+      renderDongList();
+      return;
+    }
+    if(!res.ok) throw new Error(`dong-ranking ${res.status}`);
     const data = await res.json();
-    if(!Array.isArray(data.dong) || data.dong.length === 0) return;
+    if(!Array.isArray(data.dong) || data.dong.length === 0){
+      dongDataUnavailable = true;
+      renderDongList();
+      return;
+    }
 
+    dongDataUnavailable = false;
     currentHsAverageTemp = data.cityAverage;
     currentDongRanking = data.dong.map(d => ({
       rank: d.rank,
@@ -1261,7 +1432,7 @@ async function resolveMyLocation(){
   }catch(err){
     // 위치 미지원/권한거부/타임아웃 등 - 기본 지역(화성시/동탄)으로 계속 동작
     console.warn('위치 연동 실패, 기본 지역으로 표시:', err);
-    showToast(`위치 정보를 사용할 수 없어 기본 지역(${MOCK_REGION_NAME})을 표시합니다`);
+    showToast(`위치 정보를 사용할 수 없어 기본 지역(${MOCK_REGION_NAME})${pickParticle(MOCK_REGION_NAME, '을', '를')} 표시합니다`);
   }
 }
 
