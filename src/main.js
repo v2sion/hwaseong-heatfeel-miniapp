@@ -630,15 +630,46 @@ async function setStoredConsent(value){
 
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
-// 최초 로딩(스켈레톤 표시) → mock/실데이터 중 먼저 준비되는 쪽으로 한 번에 리빌.
-// 실데이터가 늦어도 최대 maxWaitMs 후엔 mock 값 그대로 노출(무한 스켈레톤 방지), 이후 도착하는 값은 조용히 교체.
-// 위치 동의 경로는 GPS 확인 자체가 몇 초 걸릴 수 있어(특히 콜드스타트) 더 긴 창을 준다 -
-// 짧으면 스켈레톤이 너무 일찍 사라져 mock(기본 지역)이 "최종 상태"처럼 보이고, 뒤늦게 도착하는
-// 실제 위치 업데이트를 사용자가 놓치기 쉽다.
-async function bootWithSkeleton(loaderFn, maxWaitMs = 1200){
+// 위치 확인 중 보여줄 위트있는 진행 문구. 몇 초씩 걸릴 수 있는 GPS 대기 시간 동안
+// "멈춘 게 아니라 실제로 찾고 있다"는 걸 알려주기 위해 주기적으로 문구를 바꿔준다.
+const LOCATING_MESSAGES = [
+  '지금 계신 동네의 열 추적을 진행하고 있어요',
+  '더위 사냥꾼이 GPS로 동네를 뒤지는 중이에요',
+  '체감온도 탐정, 위치를 추리하고 있어요',
+];
+let locatingMessageTimer = null;
+
+function startLocatingMessages(){
+  const el = document.getElementById('location-progress-text');
+  let i = 0;
+  el.textContent = LOCATING_MESSAGES[0];
+  locatingMessageTimer = setInterval(() => {
+    i = (i + 1) % LOCATING_MESSAGES.length;
+    el.textContent = LOCATING_MESSAGES[i];
+  }, 2200);
+}
+
+function stopLocatingMessages(){
+  clearInterval(locatingMessageTimer);
+  locatingMessageTimer = null;
+}
+
+// 최초 로딩(스켈레톤 표시) → 실데이터가 준비될 때까지 유지한다(강남구 등 mock 값이
+// "최종 상태"처럼 잠깐 보였다가 실제 위치로 바뀌는 걸 사용자가 놓치는 문제를 막기 위함).
+// maxWaitMs는 네트워크가 완전히 멈췄을 때를 대비한 안전장치일 뿐, 평소엔 거의 발동하지 않는다.
+// locating:true면 rank-badge 대신 위치 확인 중 문구를 보여준다(위치 동의 경로에서만 사용).
+async function bootWithSkeleton(loaderFn, { locating = false, maxWaitMs = 20000 } = {}){
   document.body.classList.add('is-loading');
+  if(locating){
+    document.body.classList.add('is-locating');
+    startLocatingMessages();
+  }
   await Promise.race([loaderFn(), sleep(maxWaitMs)]);
   document.body.classList.remove('is-loading');
+  if(locating){
+    document.body.classList.remove('is-locating');
+    stopLocatingMessages();
+  }
 }
 
 // 체감온도 색상 안내 모달 - 색만으로 구분하기 어려운 사용자를 위해 구간별 온도 기준을 텍스트로 보여준다.
@@ -655,8 +686,7 @@ function onConsentAllow(){
   trackClick({ log_name: 'location_consent_allow' });
   setStoredConsent('allowed');
   document.getElementById('consent-overlay').classList.remove('show');
-  showToast('내 위치를 확인하고 있어요');
-  bootWithSkeleton(initLocationAndData, 4000);
+  bootWithSkeleton(initLocationAndData, { locating: true });
 }
 
 function onConsentSkip(){
@@ -669,7 +699,7 @@ function onConsentSkip(){
 async function startLocationFlow(){
   const consent = await getStoredConsent();
   if(consent === 'allowed'){
-    bootWithSkeleton(initLocationAndData, 4000);
+    bootWithSkeleton(initLocationAndData, { locating: true });
   }else if(consent === 'skipped'){
     bootWithSkeleton(loadDataWithoutLocation);
   }else{

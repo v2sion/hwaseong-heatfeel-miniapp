@@ -3,7 +3,23 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>오늘 우리동네 체감온도 - 미니앱 프로토타입</title>
+<title>무더위 체감 랭킹</title>
+<meta name="description" content="내 위치 기준 체감온도를 전국·우리 동네 순위로 확인하고, 위트있는 후킹카피와 함께 공유해보세요. 시간마다 새로 갱신돼요." />
+
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://app-tau-ten-42.vercel.app/" />
+<meta property="og:title" content="우리 동네, 전국 몇 등으로 더울까?" />
+<meta property="og:description" content="내 위치 기준 체감온도를 전국·우리 동네 순위로 확인하고, 위트있는 후킹카피와 함께 공유해보세요. 시간마다 새로 갱신돼요." />
+<meta property="og:image" content="https://app-tau-ten-42.vercel.app/logo.png" />
+<meta property="og:image:width" content="600" />
+<meta property="og:image:height" content="600" />
+<meta property="og:locale" content="ko_KR" />
+
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="우리 동네, 전국 몇 등으로 더울까?" />
+<meta name="twitter:description" content="내 위치 기준 체감온도를 전국·우리 동네 순위로 확인하고, 위트있는 후킹카피와 함께 공유해보세요. 시간마다 새로 갱신돼요." />
+<meta name="twitter:image" content="https://app-tau-ten-42.vercel.app/logo.png" />
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
 <style>
   /* ============================================================
@@ -185,6 +201,34 @@
     text-overflow:ellipsis;
     white-space:nowrap;
   }
+
+  /* 위치 확인 중 진행 표시 - is-locating일 땐 rank-badge(구 지역 mock 데이터) 대신 이걸 보여준다 */
+  .location-progress{
+    display:none;
+    align-items:center;
+    gap:8px;
+    max-width:100%;
+    background:var(--mint-050);
+    border:1px solid var(--mint-100);
+    color:var(--mint-700);
+    font-size:13px;
+    font-weight:700;
+    padding:8px 14px;
+    border-radius:var(--radius-pill);
+  }
+  .location-progress .progress-dot{
+    width:8px; height:8px;
+    border-radius:50%;
+    background:var(--mint-700);
+    flex-shrink:0;
+    animation:progress-pulse 1s ease-in-out infinite;
+  }
+  @keyframes progress-pulse{
+    0%, 100%{ opacity:1; transform:scale(1); }
+    50%{ opacity:.4; transform:scale(.7); }
+  }
+  body.is-locating .rank-badge{ display:none; }
+  body.is-locating .location-progress{ display:inline-flex; }
 
   .temp-hero{
     margin-top:34px;
@@ -860,6 +904,10 @@
         <span class="rank-badge">
           <span class="dot"></span>
           <span id="s1-rank-badge-text">강남구, 오늘 전국 256개 시군구 중 상위 7%</span>
+        </span>
+        <span class="location-progress" id="location-progress">
+          <span class="progress-dot"></span>
+          <span id="location-progress-text">지금 계신 동네의 열 추적을 진행하고 있어요</span>
         </span>
 
         <div class="data-error-banner" id="data-error-banner">
