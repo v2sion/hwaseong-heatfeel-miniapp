@@ -581,3 +581,15 @@ function startLocationFlow(){
 renderAll();
 startLocationFlow();
 initKakao();
+
+// ES 모듈은 top-level 선언이 전역(window)으로 노출되지 않는다.
+// index.html의 onclick="..." 인라인 핸들러가 참조하는 함수들만 명시적으로 노출한다.
+Object.assign(window, {
+  goToScreen,
+  switchRankTab,
+  saveShareCardImage,
+  shareToKakao,
+  onConsentAllow,
+  onConsentSkip,
+  retryDataLoad,
+});
