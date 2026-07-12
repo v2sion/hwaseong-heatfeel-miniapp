@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation, graniteEvent } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey } from '@apps-in-toss/web-framework';
 
 /* ============================================================
    MOCK DATA
@@ -612,9 +612,23 @@ function startLocationFlow(){
   }
 }
 
+// 사용자 식별키(익명 해시) - 로그인 없이 사용자를 구분하기 위한 최소 요건.
+// 계정/개인화 기능이 없는 앱이라 지금은 저장만 해두고(향후 어뷰징 방지 등에 활용 가능),
+// 실패해도(구버전 앱, 브라우저 단독 접속 등) 화면 동작에는 영향을 주지 않는다.
+let currentUserKey = null;
+async function initUserKey(){
+  try{
+    const result = await getAnonymousKey();
+    if(result && result !== 'ERROR') currentUserKey = result.hash;
+  }catch(err){
+    console.warn('사용자 식별키 조회 실패(브라우저 환경 등):', err);
+  }
+}
+
 renderAll();
 startLocationFlow();
 initKakao();
+initUserKey();
 
 // ES 모듈은 top-level 선언이 전역(window)으로 노출되지 않는다.
 // index.html의 onclick="..." 인라인 핸들러가 참조하는 함수들만 명시적으로 노출한다.
