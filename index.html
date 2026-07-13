@@ -210,6 +210,22 @@
     transition:opacity .3s ease;
   }
 
+  .use-my-location-btn{
+    display:inline-flex;
+    align-items:center;
+    margin-top:8px;
+    border:none;
+    background:var(--mint-050);
+    color:var(--mint-700);
+    font-size:12px;
+    font-weight:700;
+    padding:7px 12px;
+    border-radius:var(--radius-pill);
+    cursor:pointer;
+  }
+  .use-my-location-btn:active{ transform:translateY(1px); }
+  body.is-loading .use-my-location-btn{ display:none !important; }
+
   .temp-hero{
     margin-top:34px;
     text-align:center;
@@ -1001,6 +1017,8 @@
           <span class="dot"></span>
           <span id="s1-rank-badge-text">강남구, 오늘 전국 256개 시군구 중 상위 7%</span>
         </span>
+        <!-- 위치 동의를 건너뛴 상태에서만 노출 - 마음이 바뀌면 언제든 다시 동의창을 띄울 수 있게 -->
+        <button class="use-my-location-btn" id="use-my-location-btn" onclick="openLocationConsent()" style="display:none;">📍 내 동네 온도는 어때요?</button>
 
         <div class="data-error-banner" id="data-error-banner">
           <span class="msg">정보를 불러오지 못했어요</span>

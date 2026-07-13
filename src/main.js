@@ -92,7 +92,11 @@ let currentCoord = { ...MOCK_COORD };
 let currentRegionName = MOCK_REGION_NAME;             // 화면 표시용 지역명
 let currentRegionMatchName = MOCK_REGION_MATCH_NAME;  // /api/ranking에서 내 지역을 찾을 때 쓰는 실제 행정구역명
 let currentCityCode = MOCK_MY_CITY_CODE;              // /api/dong-ranking 조회용 시군구 코드
-let currentMyDongName = MOCK_MY_DONG_NAME;            // 화면2 동 단위 탭에서 "우리 동네"로 강조 표시할 대상
+let currentMyDongName = MOCK_MY_DONG_NAME;            // 화면2 동 단위 탭에서 강조 표시할 대상(실위치일 땐 내 동네, 기본값일 땐 그 지역 1위 동)
+// 위치 동의를 안 했거나 실패해서 resolveDefaultRegion()으로 대체됐는지 여부.
+// true일 땐 강조 배지 문구를 "우리 동네"가 아니라 "지금 가장 핫한 동네/지역"으로 바꾼다 -
+// 실제 사용자 위치가 아닌데 "우리 동네"라고 하면 오해를 준다는 피드백 반영.
+let isUsingDefaultRegion = false;
 
 // 화면1/3에서 실제로 표시할 체감온도. /api/weather 연동 성공 시 실데이터로 교체되고,
 // 실패(로컬에서 vercel dev 없이 index.html만 열람 등) 시 MOCK 값을 그대로 사용한다.
@@ -220,6 +224,7 @@ function renderScreen1(){
       // 첫 줄의 지역명만 강조
       return i===0 ? line.replace(currentRegionName, `<span class="accent">${currentRegionName}</span>`) : line;
     }).join('<br/>');
+  document.getElementById('use-my-location-btn').style.display = isUsingDefaultRegion ? 'inline-flex' : 'none';
 }
 
 function renderCityBarList(){
@@ -235,7 +240,7 @@ function renderCityBarList(){
           <div class="bar-meta">
             <span class="bar-name-wrap">
               <span class="bar-name" title="${r.name}">${r.name}</span>
-              ${r.isMe ? '<span class="me-chip">우리 동네</span>' : ''}
+              ${r.isMe ? `<span class="me-chip">${isUsingDefaultRegion ? '지금 가장 핫한 지역' : '우리 동네'}</span>` : ''}
             </span>
             <span class="bar-temp">${fmtTemp(r.temp)}°</span>
           </div>
@@ -274,7 +279,7 @@ function renderDongList(){
           <div class="rank-chip">${d.rank}</div>
           <div>
             <div class="dong-name" title="${d.name}">${d.name}</div>
-            ${d.isMe ? '<span class="dong-badge">우리 동네</span>' : ''}
+            ${d.isMe ? `<span class="dong-badge">${isUsingDefaultRegion ? '지금 가장 핫한 동네' : '우리 동네'}</span>` : ''}
           </div>
         </div>
         <div class="right">
@@ -420,6 +425,9 @@ async function loadDongRanking(){
 
     dongDataUnavailable = false;
     currentHsAverageTemp = data.cityAverage;
+    // 위치 동의를 안 한 상태(기본 지역 표시 중)라면 "내 동네"를 알 수 없으니, 대신 그 지역에서
+    // 가장 더운 동(data.dong[0], rank 1)을 "지금 가장 핫한 동네"로 강조한다.
+    if(isUsingDefaultRegion) currentMyDongName = data.dong[0]?.name ?? null;
     currentDongRanking = data.dong.map(d => ({
       rank: d.rank,
       name: d.name,
@@ -592,7 +600,8 @@ async function resolveDefaultRegion(){
     currentRegionMatchName = hottest.nameKo;
     currentCityCode = hottest.code;
     currentCoord = { lat: hottest.lat, lon: hottest.lon };
-    currentMyDongName = null;
+    currentMyDongName = null; // 동 랭킹이 아직 안 왔으니 일단 비워두고, loadDongRanking()에서 1위 동으로 채운다
+    isUsingDefaultRegion = true;
   }catch(err){
     // 랭킹 데이터까지 못 가져오면(전면 장애 등) 마지막 안전망으로 MOCK 상수(강남구)를 그대로 둔다
     console.warn('실시간 최고 체감온도 지역 조회 실패, mock 지역으로 계속 진행:', err);
@@ -613,6 +622,7 @@ async function resolveMyLocation(){
     currentRegionMatchName = data.city.nameKo;
     currentCityCode = data.city.code;
     currentMyDongName = data.dong ? data.dong.name : null;
+    isUsingDefaultRegion = false;
   }catch(err){
     // 위치 미지원/권한거부/타임아웃 등 - 지금 가장 더운 지역을 기본값으로 대신 보여준다
     console.warn('위치 연동 실패, 실시간 최고 체감온도 지역으로 대체:', err);
@@ -743,6 +753,12 @@ function closeBracketInfo(){
   document.getElementById('bracket-info-overlay').classList.remove('show');
 }
 
+// 위치 동의를 건너뛰었다가 마음이 바뀐 사용자를 위한 재동의 창구 - 기존 최초 고지 모달을 그대로 재사용한다.
+function openLocationConsent(){
+  trackClick({ log_name: 'location_consent_reopen' });
+  document.getElementById('consent-overlay').classList.add('show');
+}
+
 function onConsentAllow(){
   trackClick({ log_name: 'location_consent_allow' });
   setStoredConsent('allowed');
@@ -799,4 +815,5 @@ Object.assign(window, {
   retryDataLoad,
   openBracketInfo,
   closeBracketInfo,
+  openLocationConsent,
 });
