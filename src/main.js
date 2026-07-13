@@ -576,6 +576,29 @@ async function getDeviceLocation(){
   }
 }
 
+// 위치를 못 쓸 때의 기본값 - 특정 지역(강남구 등)으로 고정하면 범용성이 떨어져서,
+// 대신 "지금 이 순간 전국에서 체감온도가 가장 높은 지역"을 매시간 갱신되는 랭킹에서 그대로
+// 가져와 기본값으로 쓴다. currentMyDongName은 null로 둬서(내가 아는 내 동네가 아니므로)
+// 동 단위 탭에 "우리 동네" 강조가 뜨지 않게 한다.
+async function resolveDefaultRegion(){
+  try{
+    const res = await fetch(`${API_BASE}/api/ranking`);
+    if(!res.ok) throw new Error(`ranking ${res.status}`);
+    const data = await res.json();
+    if(!Array.isArray(data.regions) || data.regions.length === 0) throw new Error('empty ranking payload');
+
+    const hottest = data.regions[0]; // regions는 체감온도 내림차순 정렬 - 0번이 전국 1위(가장 더움)
+    currentRegionName = hottest.nameKo;
+    currentRegionMatchName = hottest.nameKo;
+    currentCityCode = hottest.code;
+    currentCoord = { lat: hottest.lat, lon: hottest.lon };
+    currentMyDongName = null;
+  }catch(err){
+    // 랭킹 데이터까지 못 가져오면(전면 장애 등) 마지막 안전망으로 MOCK 상수(강남구)를 그대로 둔다
+    console.warn('실시간 최고 체감온도 지역 조회 실패, mock 지역으로 계속 진행:', err);
+  }
+}
+
 async function resolveMyLocation(){
   try{
     const coord = await getDeviceLocation();
@@ -591,9 +614,10 @@ async function resolveMyLocation(){
     currentCityCode = data.city.code;
     currentMyDongName = data.dong ? data.dong.name : null;
   }catch(err){
-    // 위치 미지원/권한거부/타임아웃 등 - 기본 지역(강남구/역삼1동)으로 계속 동작
-    console.warn('위치 연동 실패, 기본 지역으로 표시:', err);
-    showToast(`위치 정보를 사용할 수 없어 기본 지역(${MOCK_REGION_NAME})${pickParticle(MOCK_REGION_NAME, '을', '를')} 표시합니다`);
+    // 위치 미지원/권한거부/타임아웃 등 - 지금 가장 더운 지역을 기본값으로 대신 보여준다
+    console.warn('위치 연동 실패, 실시간 최고 체감온도 지역으로 대체:', err);
+    await resolveDefaultRegion();
+    showToast(`위치 정보를 사용할 수 없어 지금 가장 더운 지역(${currentRegionName})${pickParticle(currentRegionName, '을', '를')} 표시합니다`);
   }
 }
 
@@ -604,8 +628,9 @@ async function initLocationAndData(){
   await Promise.allSettled([loadRealWeather(), loadRanking(), loadDongRanking()]);
 }
 
-// 위치 없이도 기본 지역(강남구/역삼1동) 기준으로 화면은 항상 뜬다 - 여기서는 데이터만 갱신
+// 위치를 안 쓰기로 한 경우에도 화면은 항상 뜬다 - 이때는 지금 가장 더운 지역을 기본값으로 보여준다
 async function loadDataWithoutLocation(){
+  await resolveDefaultRegion();
   await Promise.allSettled([loadRealWeather(), loadRanking(), loadDongRanking()]);
 }
 
