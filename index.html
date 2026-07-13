@@ -10,15 +10,15 @@
 <meta property="og:url" content="https://app-tau-ten-42.vercel.app/" />
 <meta property="og:title" content="우리 동네, 전국 몇 등으로 더울까?" />
 <meta property="og:description" content="내 위치 기준 체감온도를 전국·우리 동네 순위로 확인하고, 위트있는 후킹카피와 함께 공유해보세요. 시간마다 새로 갱신돼요." />
-<meta property="og:image" content="https://app-tau-ten-42.vercel.app/logo.png" />
-<meta property="og:image:width" content="600" />
-<meta property="og:image:height" content="600" />
+<meta property="og:image" content="https://app-tau-ten-42.vercel.app/og-image.png" />
+<meta property="og:image:width" content="670" />
+<meta property="og:image:height" content="796" />
 <meta property="og:locale" content="ko_KR" />
 
-<meta name="twitter:card" content="summary" />
+<meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="우리 동네, 전국 몇 등으로 더울까?" />
 <meta name="twitter:description" content="내 위치 기준 체감온도를 전국·우리 동네 순위로 확인하고, 위트있는 후킹카피와 함께 공유해보세요. 시간마다 새로 갱신돼요." />
-<meta name="twitter:image" content="https://app-tau-ten-42.vercel.app/logo.png" />
+<meta name="twitter:image" content="https://app-tau-ten-42.vercel.app/og-image.png" />
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
 <style>
@@ -609,6 +609,12 @@
     position:relative;
     overflow:hidden;
   }
+  .share-card-watermark{
+    position:absolute;
+    right:14px; bottom:14px;
+    opacity:.16;
+    pointer-events:none;
+  }
   .share-card::after{
     content:"";
     position:absolute; left:-40px; bottom:-60px;
@@ -1015,9 +1021,19 @@
             동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
           </p>
           <div class="hook-progress">
-            <!-- 실제 TDS 벡터로 교체 필요한 형태 제안용 플레이스홀더 아이콘 -->
-            <svg class="progress-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M12 2C12 2 6 8.5 6 13.5C6 17.09 8.69 20 12 20C15.31 20 18 17.09 18 13.5C18 11.5 17 9.5 16 8C16 10 14.5 11 13.5 10.5C14.5 8 12 2 12 2Z" fill="currentColor"/>
+            <!-- 실제 TDS icon-sun-fill 벡터 (Claude Design 프로젝트의 Figma 원본 path 그대로 반영) -->
+            <svg class="progress-icon" width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <g fill="currentColor">
+                <circle cx="20" cy="20" r="7.07"/>
+                <rect x="18.5" y="8" width="2.5" height="3.6" rx="1.26"/>
+                <rect x="18.5" y="28.4" width="2.5" height="3.6" rx="1.26"/>
+                <rect x="8" y="18.5" width="3.6" height="2.5" rx="1.26"/>
+                <rect x="28.4" y="18.5" width="3.6" height="2.5" rx="1.26"/>
+                <rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(-9.6,-9.6)"/>
+                <rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(9.6,9.6)"/>
+                <rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(-9.6,9.6)"/>
+                <rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(9.6,-9.6)"/>
+              </g>
             </svg>
             <span id="location-progress-text">지금 계신 동네의 열 추적을 진행하고 있어요</span>
           </div>
@@ -1069,6 +1085,12 @@
 
       <div class="body-wrap">
         <div class="share-card">
+          <!-- 카드 우측 하단 포인트 워터마크 (Claude Design 아이콘 제안 3번 그대로 반영,
+               icon-fire-*-fill 실제 벡터 미확보로 형태 제안용 플레이스홀더) -->
+          <svg class="share-card-watermark" width="76" height="76" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+            <path d="M 20 8 C 24 13 26.5 16.5 26.5 21.5 C 26.5 27 23.5 30.5 19.5 30.5 C 15 30.5 12 27 12.3 22.3 C 12.5 19.5 14 18 14.6 20.2 C 15 21.6 16 21.4 16.3 20 C 17 17 16.5 13.5 20 8 Z" fill="#fff"/>
+            <path d="M 19.6 19 C 21.3 21.2 22 22.6 22 24.2 C 22 26.4 20.6 27.8 18.8 27.6 C 17.2 27.4 16.3 26 16.7 24.2 C 17 22.8 18.2 22.6 18.4 23.8 C 18.5 24.4 19 24.3 19 23.6 C 19 22.2 18.7 21 19.6 19 Z" fill="#fff"/>
+          </svg>
           <div class="brand-row">
             <span class="brand-mark">
               <!-- 실제 TDS icon-sun-fill 벡터로 교체 필요한 형태 제안용 플레이스홀더 워터마크 -->
@@ -1124,11 +1146,11 @@
   <div class="consent-overlay" id="consent-overlay">
     <div class="consent-sheet">
       <div class="sheet-grabber"></div>
-      <!-- 실제 TDS icon-pin-location-fill 벡터로 교체 필요한 형태 제안용 플레이스홀더 -->
+      <!-- Claude Design 아이콘 제안의 pinIcon() 형태 그대로 반영 (icon-pin-location-fill 실제 벡터 미확보로 형태 제안용) -->
       <div class="consent-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 6.72 11.19 7.01 11.45a1.5 1.5 0 001.98 0C13.28 21.19 20 15.25 20 10c0-4.42-3.58-8-8-8z" fill="var(--mint-700)"/>
-          <circle cx="12" cy="10" r="3" fill="#fff"/>
+        <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
+          <path d="M 20 4 C 13.4 4 8 9.3 8 15.8 C 8 24 20 36 20 36 C 20 36 32 24 32 15.8 C 32 9.3 26.6 4 20 4 Z" fill="var(--mint-700)"/>
+          <circle cx="20" cy="15.8" r="5.4" fill="#fff"/>
         </svg>
       </div>
       <h3>내 동네 체감온도, 위치 허용하고 볼까요?</h3>
@@ -1147,11 +1169,13 @@
       <p>색깔로 지금 더위가 어느 정도인지 한눈에 보여드려요.</p>
       <!-- 아이콘은 실제 TDS 벡터로 교체 필요한 형태 제안용 플레이스홀더 -->
       <div class="bracket-legend">
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-cool)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0c0-5-7-13-7-13z" fill="#fff"/></svg></span><div class="bracket-text"><strong>쾌적</strong><span>체감 33°C 미만</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-hot)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="#fff"/><g stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g></svg></span><div class="bracket-text"><strong>더움</strong><span>체감 33°C 이상</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-veryhot)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 6 8.5 6 13.5C6 17.09 8.69 20 12 20C15.31 20 18 17.09 18 13.5C18 11.5 17 9.5 16 8C16 10 14.5 11 13.5 10.5C14.5 8 12 2 12 2Z" fill="#fff" opacity="0.9"/></svg></span><div class="bracket-text"><strong>매우 더움</strong><span>체감 35°C 이상</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-extreme)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 6 8.5 6 13.5C6 17.09 8.69 20 12 20C15.31 20 18 17.09 18 13.5C18 11.5 17 9.5 16 8C16 10 14.5 11 13.5 10.5C14.5 8 12 2 12 2Z" fill="#fff"/></svg></span><div class="bracket-text"><strong>폭염</strong><span>체감 38°C 이상</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-tropicalnight)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12.5A8.5 8.5 0 1111.5 4a6.5 6.5 0 008.5 8.5z" fill="#fff"/></svg></span><div class="bracket-text"><strong>열대야</strong><span>밤 9시~6시, 체감 25°C 이상</span></div></div>
+        <!-- 실제 TDS icon-sun-fill 벡터는 그대로 반영, 나머지(물방울/불꽃/일출)는 Claude Design
+             아이콘 제안(무더위 체감 랭킹 - 아이콘 적용 제안.dc.html)의 형태를 그대로 옮김 -->
+        <div class="bracket-row"><span class="swatch" style="background:#E4FBF6"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><path d="M 20 5 C 25 13 30.5 18.8 30.5 25 C 30.5 31.4 25.9 36 20 36 C 14.1 36 9.5 31.4 9.5 25 C 9.5 18.8 15 13 20 5 Z" fill="#00C2A8"/></svg></span><div class="bracket-text"><strong>쾌적</strong><span>체감 33°C 미만</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:#FFF6E4"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><g fill="rgb(255,163,0)"><circle cx="20" cy="20" r="7.07"/><rect x="18.5" y="8" width="2.5" height="3.6" rx="1.26"/><rect x="18.5" y="28.4" width="2.5" height="3.6" rx="1.26"/><rect x="8" y="18.5" width="3.6" height="2.5" rx="1.26"/><rect x="28.4" y="18.5" width="3.6" height="2.5" rx="1.26"/><rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(-9.6,-9.6)"/><rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(9.6,9.6)"/><rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(-9.6,9.6)"/><rect x="18.5" y="18.5" width="2.5" height="2.5" rx="1.26" transform="rotate(45 19.75 19.75) translate(9.6,-9.6)"/></g></svg></span><div class="bracket-text"><strong>더움</strong><span>체감 33°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:#FFF1D6"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><path d="M 20 8 C 24 13 26.5 16.5 26.5 21.5 C 26.5 27 23.5 30.5 19.5 30.5 C 15 30.5 12 27 12.3 22.3 C 12.5 19.5 14 18 14.6 20.2 C 15 21.6 16 21.4 16.3 20 C 17 17 16.5 13.5 20 8 Z" fill="#FFC94D"/><path d="M 19.6 19 C 21.3 21.2 22 22.6 22 24.2 C 22 26.4 20.6 27.8 18.8 27.6 C 17.2 27.4 16.3 26 16.7 24.2 C 17 22.8 18.2 22.6 18.4 23.8 C 18.5 24.4 19 24.3 19 23.6 C 19 22.2 18.7 21 19.6 19 Z" fill="#FFE8A3"/></svg></span><div class="bracket-text"><strong>매우 더움</strong><span>체감 35°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:#FFE7DD"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><path d="M 20 8 C 24 13 26.5 16.5 26.5 21.5 C 26.5 27 23.5 30.5 19.5 30.5 C 15 30.5 12 27 12.3 22.3 C 12.5 19.5 14 18 14.6 20.2 C 15 21.6 16 21.4 16.3 20 C 17 17 16.5 13.5 20 8 Z" fill="#FF6B35"/><path d="M 19.6 19 C 21.3 21.2 22 22.6 22 24.2 C 22 26.4 20.6 27.8 18.8 27.6 C 17.2 27.4 16.3 26 16.7 24.2 C 17 22.8 18.2 22.6 18.4 23.8 C 18.5 24.4 19 24.3 19 23.6 C 19 22.2 18.7 21 19.6 19 Z" fill="#FFB088"/></svg></span><div class="bracket-text"><strong>폭염</strong><span>체감 38°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:#EFEBFF"><svg width="20" height="20" viewBox="0 0 40 40" fill="none"><rect x="8" y="27" width="24" height="3" rx="1.5" fill="rgb(255,138,0)"/><path d="M 11 24 A 9 9 0 0 1 29 24 Z" fill="rgb(255,163,0)"/><g stroke="rgb(255,163,0)" stroke-width="2.2" stroke-linecap="round"><line x1="20" y1="6" x2="20" y2="10"/><line x1="8.5" y1="11" x2="11" y2="13.2"/><line x1="31.5" y1="11" x2="29" y2="13.2"/></g></svg></span><div class="bracket-text"><strong>열대야</strong><span>밤 9시~6시, 체감 25°C 이상</span></div></div>
       </div>
       <div class="bracket-basis">
         <strong>체감온도는 어떻게 계산되나요?</strong>
