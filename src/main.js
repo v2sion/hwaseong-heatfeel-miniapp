@@ -644,44 +644,44 @@ const LOCATING_MESSAGES = [
   '체감온도 탐정, 위치를 추리하고 있어요',
 ];
 let locatingMessageTimer = null;
-let locatingTypeTimer = null;
+let locatingFadeTimer = null;
 
-// 문구를 한 번에 바꾸지 않고 한 글자씩 "타이핑되는" 느낌으로 채워 넣는다.
-function typeMessage(el, text){
-  clearInterval(locatingTypeTimer);
-  el.textContent = '';
-  let i = 0;
-  locatingTypeTimer = setInterval(() => {
-    i++;
-    el.textContent = text.slice(0, i);
-    if(i >= text.length) clearInterval(locatingTypeTimer);
-  }, 45);
+// 타이핑 대신 블러+페이드로 부드럽게 디졸브시키며 문구를 바꾼다 (CSS의 .fade-out 참고).
+function showMessageDissolve(el, text){
+  clearTimeout(locatingFadeTimer);
+  el.classList.add('fade-out');
+  locatingFadeTimer = setTimeout(() => {
+    el.textContent = text;
+    el.classList.remove('fade-out');
+  }, 400);
 }
 
 function startLocatingMessages(){
   const el = document.getElementById('location-progress-text');
   let i = 0;
-  typeMessage(el, LOCATING_MESSAGES[0]);
+  el.textContent = LOCATING_MESSAGES[0];
   locatingMessageTimer = setInterval(() => {
     i = (i + 1) % LOCATING_MESSAGES.length;
-    typeMessage(el, LOCATING_MESSAGES[i]);
-  }, 2600);
+    showMessageDissolve(el, LOCATING_MESSAGES[i]);
+  }, 3200);
 }
 
 function stopLocatingMessages(){
   clearInterval(locatingMessageTimer);
-  clearInterval(locatingTypeTimer);
+  clearTimeout(locatingFadeTimer);
   locatingMessageTimer = null;
-  locatingTypeTimer = null;
+  locatingFadeTimer = null;
 }
 
 // 로딩 중엔 체감온도 숫자를 빠르게 무작위로 바꿔서 "계산 중"인 것처럼 보여준다.
 let tempRollTimer = null;
 function startTempRollAnimation(){
   const el = document.getElementById('s1-temp');
+  // 앞자리 "3"은 고정, 뒷자리만 0.8초마다 랜덤하게 바뀐다 - 자릿수 전체가 빠르게
+  // 돌면 산만해서(사용자 피드백) 훨씬 차분한 속도/폭으로 조정.
   tempRollTimer = setInterval(() => {
-    el.textContent = Math.floor(20 + Math.random() * 20);
-  }, 90);
+    el.textContent = '3' + Math.floor(Math.random() * 10);
+  }, 800);
 }
 function stopTempRollAnimation(){
   clearInterval(tempRollTimer);

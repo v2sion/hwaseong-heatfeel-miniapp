@@ -114,7 +114,13 @@
   .device{
     width:100%;
     max-width:430px;
-    min-height:100dvh;
+    /* min-height가 아니라 height여야 한다 - .screens/.screen의 height:100%는 부모가 '정의된
+       높이'를 가져야 정상 계산된다. min-height만 있으면(특히 dvh 미지원 브라우저) 그 퍼센트
+       체인이 깨져서 각 .screen이 내부 스크롤 대신 콘텐츠만큼 계속 늘어나고, 그 결과 .device
+       전체가 뷰포트보다 커져 하단 플로팅 버튼(.floating-cta)이 화면 밖으로 밀려난다.
+       (특히 항목이 많은 동 단위 탭에서 두드러짐) */
+    height:100vh; /* dvh 미지원 브라우저 대체값 */
+    height:100dvh;
     background:var(--bg-app);
     position:relative;
     overflow:hidden;
@@ -296,18 +302,12 @@
   body.is-loading .hook-card .tag, body.is-loading .hook-card p{ opacity:0; }
   body.is-loading .hook-card::after{ opacity:1; animation:skeleton-shimmer 1.4s ease-in-out infinite; }
 
-  /* 위치 확인 중(is-locating)엔 중립 쉬머 대신 폭염/매우더움/더움 색으로 눈에 띄게 배경을 채우고
-     그 안에 위트있는 순환 문구를 카드 정중앙에 크게 보여준다 - 로딩임을 가장 잘 알아챌 수 있는
-     영역이라 여기로 모음. tag/p는 display:none으로 완전히 레이아웃에서 빼고, hook-progress를
-     inset:0 오버레이로 깔아야 (opacity:0로 자리만 차지하게 두면) 진짜 카드 정중앙에 오지 않는다. */
+  /* 위치 확인 중(is-locating)엔 배경색 없이 회색 스켈레톤(중립 쉬머) 그대로 두고, 그 위에
+     위트있는 순환 문구만 카드 정중앙에 키 컬러(오렌지)로 크게 보여준다. tag/p는 display:none
+     으로 완전히 레이아웃에서 빼고, hook-progress를 inset:0 오버레이로 깔아야(opacity:0로
+     자리만 차지하게 두면) 진짜 카드 정중앙에 오지 않는다. */
   .hook-card .hook-progress{ display:none; }
-  body.is-locating .hook-card::after{ opacity:0; }
-  body.is-locating .hook-card{
-    min-height:132px;
-    background:var(--heat-veryhot); /* color-mix() 미지원 브라우저 대체값 */
-    background:linear-gradient(135deg, var(--heat-hot), var(--heat-veryhot) 55%, var(--heat-extreme));
-  }
-  body.is-locating .hook-card::before{ background:rgba(255,255,255,0.28); }
+  body.is-locating .hook-card{ min-height:132px; }
   body.is-locating .hook-card .tag,
   body.is-locating .hook-card p{ display:none; }
   body.is-locating .hook-card .hook-progress{
@@ -316,12 +316,24 @@
     inset:0;
     align-items:center;
     justify-content:center;
+    gap:8px;
     padding:0 24px;
-    color:var(--white);
-    font-size:18px;
+    color:var(--orange-500);
+    font-size:17px;
     font-weight:800;
     line-height:1.4;
     text-align:center;
+  }
+  .hook-card .hook-progress .progress-icon{ flex-shrink:0; }
+  /* 문구 전환을 타이핑이 아니라 블러+페이드로 자연스럽게 디졸브시킨다 (JS가 .fade-out을 토글) */
+  .hook-card .hook-progress span:not(.progress-icon){
+    transition:opacity .4s ease, filter .4s ease;
+    opacity:1;
+    filter:blur(0);
+  }
+  .hook-card .hook-progress span:not(.progress-icon).fade-out{
+    opacity:0;
+    filter:blur(6px);
   }
 
   .primary-btn{
@@ -342,15 +354,19 @@
   }
   .primary-btn:active{ transform:translateY(1px); }
 
-  /* 메인 CTA 버튼: 로딩 중엔 클릭을 막고 스켈레톤(라벨 텍스트 숨김 + 쉬머)으로 처리한다 */
-  body.is-loading .cta-wrap .primary-btn{
+  /* 메인 CTA 버튼: 로딩 중엔 클릭을 막고 스켈레톤(라벨 텍스트 숨김 + 쉬머)으로 처리한다.
+     버튼이 .floating-cta로 옮겨진 뒤에도 이 선택자가 옛 .cta-wrap을 가리키고 있어서
+     실제로는 스켈레톤도 안 걸리고 클릭도 막히지 않던 버그를 수정. */
+  body.is-loading .floating-cta .primary-btn,
+  body.is-loading .floating-cta .share-btn{
     position:relative;
     color:transparent;
     pointer-events:none;
     background:var(--ink-100);
     box-shadow:none;
   }
-  body.is-loading .cta-wrap .primary-btn::after{
+  body.is-loading .floating-cta .primary-btn::after,
+  body.is-loading .floating-cta .share-btn::after{
     content:"";
     position:absolute; inset:0;
     border-radius:var(--radius-md);
@@ -604,6 +620,7 @@
     font-size:12px; font-weight:700; opacity:.85;
     position:relative;
   }
+  .share-card .brand-mark{ display:inline-flex; align-items:center; gap:5px; }
   .share-card .region-name{
     margin-top:22px;
     display:flex;
@@ -669,6 +686,7 @@
     gap:10px;
   }
   .share-btn{
+    position:relative;
     flex:1;
     border:none;
     border-radius:var(--radius-md);
@@ -881,6 +899,7 @@
     width:28px; height:28px;
     border-radius:var(--radius-pill);
     flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
     box-shadow:inset 0 0 0 1px rgba(25,31,40,0.08);
   }
   .bracket-row .bracket-text{ display:flex; flex-direction:column; }
@@ -910,13 +929,15 @@
     0%{ background-position:200% 0; }
     100%{ background-position:-200% 0; }
   }
-  /* 로딩 중엔 텍스트를 숨기는 대신, JS(startTempRollAnimation)가 실제로 숫자를 빠르게
-     돌려서 "계산 중"인 느낌을 준다 - 그래서 숨김 처리 없이 살짝 펄스만 더한다. */
-  @keyframes temp-roll-pulse{
-    0%, 100%{ opacity:1; }
-    50%{ opacity:.55; }
+  /* 로딩 중엔 JS(startTempRollAnimation)가 뒷자리 숫자만 0.8초마다 바꿔서 "계산 중"인
+     느낌을 준다. 이땐 스켈레톤이라는 걸 알 수 있게 브랜드 그라디언트 대신 회색으로 표시. */
+  body.is-loading .temp-hero .value{
+    background:none !important;
+    -webkit-background-clip:initial !important;
+    background-clip:initial !important;
+    color:var(--ink-300) !important;
+    -webkit-text-fill-color:var(--ink-300);
   }
-  body.is-loading .temp-hero .value{ animation:temp-roll-pulse .5s ease-in-out infinite; }
   /* rank-badge는 background-clip:text 방식 대신, 텍스트를 아예 숨기고 쉬머 블록만 보여준다 -
      구형 브라우저에서 background-clip:text가 깨지면 mock 지역명("강남구" 등)이 그대로 노출되는
      문제가 있었어서 더 안전한 방식으로 교체 */
@@ -994,6 +1015,10 @@
             동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
           </p>
           <div class="hook-progress">
+            <!-- 실제 TDS 벡터로 교체 필요한 형태 제안용 플레이스홀더 아이콘 -->
+            <svg class="progress-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 2C12 2 6 8.5 6 13.5C6 17.09 8.69 20 12 20C15.31 20 18 17.09 18 13.5C18 11.5 17 9.5 16 8C16 10 14.5 11 13.5 10.5C14.5 8 12 2 12 2Z" fill="currentColor"/>
+            </svg>
             <span id="location-progress-text">지금 계신 동네의 열 추적을 진행하고 있어요</span>
           </div>
         </div>
@@ -1045,7 +1070,16 @@
       <div class="body-wrap">
         <div class="share-card">
           <div class="brand-row">
-            <span>오늘 우리동네 체감온도</span>
+            <span class="brand-mark">
+              <!-- 실제 TDS icon-sun-fill 벡터로 교체 필요한 형태 제안용 플레이스홀더 워터마크 -->
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="5" fill="#fff"/>
+                <g stroke="#fff" stroke-width="2" stroke-linecap="round">
+                  <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
+                </g>
+              </svg>
+              오늘 우리동네 체감온도
+            </span>
             <span id="s3-date"></span>
           </div>
           <div class="region-name">
@@ -1090,7 +1124,13 @@
   <div class="consent-overlay" id="consent-overlay">
     <div class="consent-sheet">
       <div class="sheet-grabber"></div>
-      <div class="consent-icon"><span class="dot"></span></div>
+      <!-- 실제 TDS icon-pin-location-fill 벡터로 교체 필요한 형태 제안용 플레이스홀더 -->
+      <div class="consent-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 6.72 11.19 7.01 11.45a1.5 1.5 0 001.98 0C13.28 21.19 20 15.25 20 10c0-4.42-3.58-8-8-8z" fill="var(--mint-700)"/>
+          <circle cx="12" cy="10" r="3" fill="#fff"/>
+        </svg>
+      </div>
       <h3>내 동네 체감온도, 위치 허용하고 볼까요?</h3>
       <p>내 위치 기준 체감온도와 전국·동네 순위를 보여드리기 위해 위치 정보를 사용해요. 위치 정보는 순위 계산에만 쓰이고 별도로 저장하지 않아요. 허용하지 않아도 기본 지역(강남구) 기준으로 이용할 수 있어요.</p>
       <div class="consent-actions">
@@ -1105,12 +1145,13 @@
       <div class="sheet-grabber"></div>
       <h3>체감온도 색상 안내</h3>
       <p>색깔로 지금 더위가 어느 정도인지 한눈에 보여드려요.</p>
+      <!-- 아이콘은 실제 TDS 벡터로 교체 필요한 형태 제안용 플레이스홀더 -->
       <div class="bracket-legend">
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-cool)"></span><div class="bracket-text"><strong>쾌적</strong><span>체감 33°C 미만</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-hot)"></span><div class="bracket-text"><strong>더움</strong><span>체감 33°C 이상</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-veryhot)"></span><div class="bracket-text"><strong>매우 더움</strong><span>체감 35°C 이상</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-extreme)"></span><div class="bracket-text"><strong>폭염</strong><span>체감 38°C 이상</span></div></div>
-        <div class="bracket-row"><span class="swatch" style="background:var(--heat-tropicalnight)"></span><div class="bracket-text"><strong>열대야</strong><span>밤 9시~6시, 체감 25°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-cool)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0c0-5-7-13-7-13z" fill="#fff"/></svg></span><div class="bracket-text"><strong>쾌적</strong><span>체감 33°C 미만</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-hot)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" fill="#fff"/><g stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g></svg></span><div class="bracket-text"><strong>더움</strong><span>체감 33°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-veryhot)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 6 8.5 6 13.5C6 17.09 8.69 20 12 20C15.31 20 18 17.09 18 13.5C18 11.5 17 9.5 16 8C16 10 14.5 11 13.5 10.5C14.5 8 12 2 12 2Z" fill="#fff" opacity="0.9"/></svg></span><div class="bracket-text"><strong>매우 더움</strong><span>체감 35°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-extreme)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C12 2 6 8.5 6 13.5C6 17.09 8.69 20 12 20C15.31 20 18 17.09 18 13.5C18 11.5 17 9.5 16 8C16 10 14.5 11 13.5 10.5C14.5 8 12 2 12 2Z" fill="#fff"/></svg></span><div class="bracket-text"><strong>폭염</strong><span>체감 38°C 이상</span></div></div>
+        <div class="bracket-row"><span class="swatch" style="background:var(--heat-tropicalnight)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12.5A8.5 8.5 0 1111.5 4a6.5 6.5 0 008.5 8.5z" fill="#fff"/></svg></span><div class="bracket-text"><strong>열대야</strong><span>밤 9시~6시, 체감 25°C 이상</span></div></div>
       </div>
       <div class="bracket-basis">
         <strong>체감온도는 어떻게 계산되나요?</strong>
