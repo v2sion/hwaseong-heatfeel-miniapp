@@ -468,7 +468,13 @@ try{
     },
   });
 }catch(err){
+  // 앱인토스 비게임 출시 체크리스트: "토스 내비게이션 바의 뒤로가기 버튼과 미니앱에서
+  // 자체 구현한 뒤로가기 버튼이 동시에 보이지 않아요" - 실제 토스 앱 안에서는 네이티브
+  // 내비게이션 바(granite.config.ts의 navigationBar 기본값)가 이미 뒤로가기를 제공하므로
+  // 화면 안의 커스텀 backbtn은 숨긴다. 브릿지가 없는 일반 브라우저(로컬/Vercel 단독
+  // 접속, 심사 외 데모용)에서만 fallback으로 커스텀 backbtn을 노출한다.
   console.warn('backEvent 리스너 등록 실패(브라우저 환경):', err);
+  document.body.classList.add('no-native-nav');
 }
 
 function switchRankTab(which){

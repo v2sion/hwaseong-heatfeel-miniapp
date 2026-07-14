@@ -159,7 +159,12 @@
     gap:8px;
     padding:calc(18px + var(--toss-safe-top)) 20px 4px;
   }
-  .backbtn{
+  /* 실제 토스 앱에서는 네이티브 내비게이션 바가 뒤로가기를 제공하므로 기본적으로 숨긴다 -
+     화면 안 커스텀 버튼까지 같이 보이면 앱인토스 비게임 출시 체크리스트("토스 내비게이션
+     바의 뒤로가기 버튼과 미니앱 자체 뒤로가기 버튼이 동시에 보이지 않아요") 위반이 된다.
+     브릿지가 없는 일반 브라우저(로컬/Vercel 단독 접속 데모)에서만 fallback으로 노출. */
+  .backbtn{ display:none; }
+  body.no-native-nav .backbtn{
     width:36px; height:36px;
     display:flex; align-items:center; justify-content:center;
     border-radius:var(--radius-pill);
@@ -978,11 +983,21 @@
   body.is-loading #s3-temp,
   body.is-loading #s3-rank-line,
   body.is-loading #s3-hook-copy,
-  body.is-loading #s3-rank-badge{
+  body.is-loading #s3-rank-badge,
+  body.is-loading #s3-date{
     color:transparent !important;
     background-image:linear-gradient(90deg, rgba(255,255,255,0.28) 25%, rgba(255,255,255,0.55) 37%, rgba(255,255,255,0.28) 63%);
     background-size:400% 100%;
     border-radius:8px;
+    animation:skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  /* s1-sub는 loadRealWeather() 완료 전까지 MOCK_UPDATED_AT_LABEL("오늘 15:00 기준" 고정값)을
+     그대로 노출하고 있었다 - 실제 시간이 아닌데 실시간처럼 보여서 로딩 중엔 쉬머로 가려둔다. */
+  body.is-loading #s1-sub{
+    color:transparent !important;
+    background-image:linear-gradient(90deg, rgba(139,149,161,0.16) 25%, rgba(139,149,161,0.32) 37%, rgba(139,149,161,0.16) 63%);
+    background-size:400% 100%;
+    border-radius:6px;
     animation:skeleton-shimmer 1.4s ease-in-out infinite;
   }
   #city-bar-list, #dong-list{ position:relative; }
