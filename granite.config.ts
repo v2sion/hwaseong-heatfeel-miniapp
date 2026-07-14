@@ -1,7 +1,7 @@
 import { defineConfig } from '@apps-in-toss/web-framework/config';
 
 export default defineConfig({
-  appName: 'heatfeel-ranking',
+  appName: 'mudeowerank',
   brand: {
     displayName: '무더위 체감 랭킹',
     primaryColor: '#FF6B35',
