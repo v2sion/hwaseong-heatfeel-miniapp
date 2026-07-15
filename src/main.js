@@ -465,6 +465,15 @@ function goToScreen(n){
   trackScreen({ log_name: 'screen_view', screen: n });
 }
 
+// 앱인토스 콘솔 "주요 기능"(intoss://{appName}/ranking 같은 딥링크)으로 들어왔을 때
+// 홈(화면1)을 거치지 않고 해당 화면으로 바로 진입시킨다. vercel.json의 rewrite로
+// /ranking 경로도 이 SPA의 index.html을 그대로 서빙하도록 되어 있어야 동작한다.
+const DEEPLINK_ROUTE_TO_SCREEN = { '/ranking': 2 };
+function applyDeepLinkRoute(){
+  const screen = DEEPLINK_ROUTE_TO_SCREEN[window.location.pathname];
+  if(screen) goToScreen(screen);
+}
+
 // 앱인토스 WebView의 하드웨어/제스처 뒤로가기를 화면 스택 이동으로 처리한다(상세→메인 등).
 // (2026-07-15 수정) 루트 화면(1)에서는 "아무 것도 안 하면 기본 종료 동작에 맡겨진다"고
 // 가정했으나, 실기기 QR 테스트에서 뒤로가기(<)/단말 뒤로가기 버튼이 화면1에서 완전히
@@ -820,6 +829,7 @@ async function initUserKey(){
 }
 
 renderAll();
+applyDeepLinkRoute();
 startLocationFlow();
 initUserKey();
 initSafeArea();
