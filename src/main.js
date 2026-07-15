@@ -700,6 +700,62 @@ async function setStoredConsent(value){
   }
 }
 
+/* ============================================================
+   업데이트 알림 창구 (2026-07-16 도입)
+   - "무엇이 바뀌었는지" 정색한 공지 대신 화면1 상단에 가볍게 훑고 지나가는 배지로 보여준다.
+   - 배포마다 CHANGELOG 맨 앞에 새 항목을 추가한다(버전 키는 배포일 기준). 사용자가 닫으면
+     그 버전을 Storage에 기록해두고, 그 버전 이하로는 다시 안 뜬다 - 최초 고지 동의 패턴과 동일.
+============================================================ */
+const CHANGELOG = [
+  {
+    version: '2026-07-16',
+    summary: '전국 평균 대비로 더 정확해졌어요',
+    detail: [
+      '동 단위 순위, 이제 전국 평균 체감온도 기준으로 비교해요',
+      '화면 전환·종료 버튼 동작을 다듬었어요',
+    ],
+  },
+];
+const UPDATE_NOTE_SEEN_KEY = 'heatfeel_update_note_seen_v1';
+
+async function getSeenUpdateVersion(){
+  try{ return await withTimeout(Storage.getItem(UPDATE_NOTE_SEEN_KEY), 1500); }
+  catch(err){
+    try{ return localStorage.getItem(UPDATE_NOTE_SEEN_KEY); }
+    catch(err2){ return null; }
+  }
+}
+
+async function setSeenUpdateVersion(value){
+  try{ await withTimeout(Storage.setItem(UPDATE_NOTE_SEEN_KEY, value), 1500); }
+  catch(err){
+    try{ localStorage.setItem(UPDATE_NOTE_SEEN_KEY, value); }
+    catch(err2){ /* 저장 실패해도 이번 세션 동작에는 지장 없음 */ }
+  }
+}
+
+async function initUpdateNote(){
+  const latest = CHANGELOG[0];
+  if(!latest) return;
+  const seenVersion = await getSeenUpdateVersion();
+  if(seenVersion === latest.version) return;
+
+  document.getElementById('update-note-summary').textContent = latest.summary;
+  document.getElementById('update-note-detail').innerHTML = latest.detail.map(d => `<li>${d}</li>`).join('');
+  document.getElementById('update-note').style.display = 'flex';
+}
+
+function toggleUpdateNoteExpand(){
+  const detailEl = document.getElementById('update-note-detail');
+  detailEl.style.display = detailEl.style.display === 'block' ? 'none' : 'block';
+}
+
+async function dismissUpdateNote(event){
+  if(event) event.stopPropagation();
+  document.getElementById('update-note').style.display = 'none';
+  await setSeenUpdateVersion(CHANGELOG[0].version);
+}
+
 function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
 // 위치 확인 중 보여줄 위트있는 진행 문구. 몇 초씩 걸릴 수 있는 GPS 대기 시간 동안
@@ -832,6 +888,7 @@ renderAll();
 applyDeepLinkRoute();
 startLocationFlow();
 initUserKey();
+initUpdateNote();
 initSafeArea();
 trackScreen({ log_name: 'screen_view', screen: currentScreenNum });
 
@@ -848,4 +905,6 @@ Object.assign(window, {
   openBracketInfo,
   closeBracketInfo,
   openLocationConsent,
+  toggleUpdateNoteExpand,
+  dismissUpdateNote,
 });

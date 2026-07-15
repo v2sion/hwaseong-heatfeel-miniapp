@@ -231,6 +231,66 @@
   .use-my-location-btn:active{ transform:translateY(1px); }
   body.is-loading .use-my-location-btn{ display:none !important; }
 
+  /* 업데이트 알림 창구 - 무거운 모달/배너가 아니라 가볍게 훑고 지나가는 톤을 유지한다. */
+  .update-note{
+    display:flex;
+    align-items:flex-start;
+    gap:6px;
+    background:linear-gradient(90deg, var(--mint-050), #FFF6EF);
+    border:1px solid var(--mint-100);
+    border-radius:var(--radius-md);
+    padding:9px 28px 9px 11px;
+    margin-top:10px;
+    position:relative;
+    cursor:pointer;
+  }
+  .update-note-body{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    min-width:0;
+    flex:1;
+  }
+  .update-note-badge{
+    flex-shrink:0;
+    background:var(--mint-700);
+    color:#fff;
+    font-size:10px;
+    font-weight:800;
+    padding:2px 6px;
+    border-radius:var(--radius-pill);
+    letter-spacing:0.02em;
+  }
+  .update-note-summary{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink-700);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    min-width:0;
+  }
+  .update-note-close{
+    position:absolute;
+    top:6px; right:6px;
+    width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+    background:none;
+    border:none;
+    color:var(--ink-300);
+    font-size:15px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .update-note-detail{
+    margin:8px 0 0;
+    padding-left:16px;
+    font-size:12px;
+    color:var(--ink-500);
+    line-height:1.6;
+  }
+  body.is-loading .update-note{ display:none !important; }
+
   .temp-hero{
     margin-top:34px;
     text-align:center;
@@ -1032,6 +1092,18 @@
           <span class="dot"></span>
           <span id="s1-rank-badge-text">강남구, 오늘 전국 256개 시군구 중 상위 7%</span>
         </span>
+
+        <!-- 업데이트 알림 창구 - 정색한 공지가 아니라 "훑고 지나가는" 캐주얼한 톤.
+             새 버전이 있을 때만 뜨고, 닫으면 그 버전은 Storage에 기록돼 다시 안 뜬다. -->
+        <div class="update-note" id="update-note" style="display:none;">
+          <button class="update-note-close" onclick="dismissUpdateNote()" aria-label="닫기">×</button>
+          <div class="update-note-body" onclick="toggleUpdateNoteExpand()">
+            <span class="update-note-badge">NEW</span>
+            <span class="update-note-summary" id="update-note-summary"></span>
+          </div>
+          <ul class="update-note-detail" id="update-note-detail" style="display:none;"></ul>
+        </div>
+
         <!-- 위치 동의를 건너뛴 상태에서만 노출 - 마음이 바뀌면 언제든 다시 동의창을 띄울 수 있게 -->
         <button class="use-my-location-btn" id="use-my-location-btn" onclick="openLocationConsent()" style="display:none;">📍 내 동네 온도는 어때요?</button>
 
