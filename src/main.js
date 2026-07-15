@@ -75,8 +75,8 @@ const MOCK_CITY_RANKING = [
   { rank: 17, name: "평택시", temp: 33.9, isMe:false }
 ];
 
-// 화면2 - 동 단위: 강남구 내 동 체감온도 mock (강남구 평균 대비 비교수치 포함)
-const MOCK_HS_AVERAGE_TEMP = 32.8; // 강남구 전체 평균 체감온도 (동 리스트 비교 기준값)
+// 화면2 - 동 단위: 강남구 내 동 체감온도 mock (전국 평균 대비 비교수치 포함)
+const MOCK_NATIONWIDE_AVERAGE_TEMP = 32.8; // 전국 256개 시군구 평균 체감온도 (동 리스트 비교 기준값)
 const MOCK_DONG_RANKING = [
   { rank: 1, name: "역삼1동", temp: 34.0, isMe:true  },
   { rank: 2, name: "논현1동", temp: 33.6, isMe:false },
@@ -111,9 +111,12 @@ let currentRankPercent = MOCK_RANK_PERCENT;
 let currentCityRank = MOCK_CITY_RANK;
 let currentCityRanking = MOCK_CITY_RANKING;
 
-// /api/dong-ranking(내 시군구의 읍면동, 시간당 갱신) 연동 성공 시 교체되는 값들.
-let currentHsAverageTemp = MOCK_HS_AVERAGE_TEMP;
+// /api/dong-ranking(내 시군구의 읍면동, 시간당 갱신) 연동 성공 시 교체되는 값.
 let currentDongRanking = MOCK_DONG_RANKING;
+
+// /api/ranking(전국 256개 시군구)의 체감온도 평균 - 동 단위 비교 기준을 "그 시 안의 평균"이
+// 아니라 "전국 평균"으로 보여달라는 요청(2026-07-15)에 따라 loadRanking()에서 계산한다.
+let currentNationwideAverageTemp = MOCK_NATIONWIDE_AVERAGE_TEMP;
 
 /* ============================================================
    체감온도 구간 시스템 (디자인시스템 v1 공용 브래킷)
@@ -268,9 +271,9 @@ function renderDongList(){
     return;
   }
 
-  document.getElementById('hs-avg-temp-label').textContent = fmtTemp(currentHsAverageTemp);
+  document.getElementById('hs-avg-temp-label').textContent = fmtTemp(currentNationwideAverageTemp);
   wrap.innerHTML = currentDongRanking.map(d=>{
-    const diff = +(d.temp - currentHsAverageTemp).toFixed(1);
+    const diff = +(d.temp - currentNationwideAverageTemp).toFixed(1);
     const diffClass = diff >= 0 ? 'up' : 'down';
     const diffLabel = `${diff >= 0 ? '+' : ''}${diff}°`;
     return `
@@ -284,7 +287,7 @@ function renderDongList(){
         </div>
         <div class="right">
           <div class="dong-temp">${fmtTemp(d.temp)}°</div>
-          <div class="dong-diff ${diffClass}">${diffLabel} 평균 대비</div>
+          <div class="dong-diff ${diffClass}">${diffLabel} 전국 평균 대비</div>
         </div>
       </div>`;
   }).join('');
@@ -393,11 +396,18 @@ async function loadRanking(){
       currentRankPercent = mine.percentile;
       currentCityRank = mine.rank;
     }
+    const nationwideTemps = data.regions.map(r => r.feelsLike).filter(t => typeof t === 'number');
+    if(nationwideTemps.length > 0){
+      currentNationwideAverageTemp = Math.round((nationwideTemps.reduce((sum, t) => sum + t, 0) / nationwideTemps.length) * 10) / 10;
+    }
     rankingLoadFailed = false;
 
     renderScreen1();
     renderCityBarList();
     renderScreen3();
+    // loadDongRanking()과 병렬로 실행되므로, 동 단위 화면이 이미 먼저 렌더링됐더라도
+    // 방금 계산한 전국 평균으로 다시 그려서 최신값을 반영한다.
+    renderDongList();
   }catch(err){
     // 네트워크 오류 등 - mock/마지막 값으로 계속 동작하되 배너로 안내
     console.warn('전국 랭킹 연동 실패, mock 값 사용:', err);
@@ -424,7 +434,6 @@ async function loadDongRanking(){
     }
 
     dongDataUnavailable = false;
-    currentHsAverageTemp = data.cityAverage;
     // 위치 동의를 안 한 상태(기본 지역 표시 중)라면 "내 동네"를 알 수 없으니, 대신 그 지역에서
     // 가장 더운 동(data.dong[0], rank 1)을 "지금 가장 핫한 동네"로 강조한다.
     if(isUsingDefaultRegion) currentMyDongName = data.dong[0]?.name ?? null;
