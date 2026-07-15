@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets, closeView } from '@apps-in-toss/web-framework';
 import html2canvas from 'html2canvas-pro';
 
 // 앱인토스로 패키징되면 정적 자산이 Toss 도메인(apps.tossmini.com 등)에서 서빙되므로,
@@ -457,13 +457,20 @@ function goToScreen(n){
 }
 
 // 앱인토스 WebView의 하드웨어/제스처 뒤로가기를 화면 스택 이동으로 처리한다(상세→메인 등).
-// 루트 화면(1)에서는 아무 것도 하지 않아 기본 종료 동작에 맡긴다.
+// (2026-07-15 수정) 루트 화면(1)에서는 "아무 것도 안 하면 기본 종료 동작에 맡겨진다"고
+// 가정했으나, 실기기 QR 테스트에서 뒤로가기(<)/단말 뒤로가기 버튼이 화면1에서 완전히
+// 무반응임을 확인함(우측 상단 X 버튼만 정상 종료) - 네이티브 셸이 backEvent 리스너가
+// 등록된 이상 "소비 안 하면 자동 종료"를 대신 해주지 않는 구조였음. closeView()를 직접
+// 호출해 X 버튼과 동일하게 명시적으로 닫아야 앱인토스 비게임 체크리스트의 "최초 화면에서
+// 뒤로가기를 누르면 미니앱이 종료돼요" 요건을 충족한다.
 // 브릿지가 없는 일반 브라우저(로컬/Vercel 단독 접속)에서는 등록 실패를 조용히 무시한다.
 try{
   graniteEvent.addEventListener('backEvent', {
     onEvent: () => {
       if(currentScreenNum > 1){
         goToScreen(currentScreenNum - 1);
+      }else{
+        closeView().catch(err => console.warn('closeView 호출 실패:', err));
       }
     },
   });
