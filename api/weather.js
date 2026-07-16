@@ -36,6 +36,7 @@ export default async function handler(req, res) {
       regionName: data.name,
       feelsLike: data.main?.feels_like,
       temp: data.main?.temp,
+      humidity: data.main?.humidity,
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {

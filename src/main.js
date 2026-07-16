@@ -57,6 +57,7 @@ const MOCK_MY_DONG_NAME       = "역삼1동";             // 화면2 동 단위 
 const MOCK_COORD              = { lat: 37.500889, lon: 127.035491 }; // 역삼1동 좌표, 위치 연동 실패 시 폴백
 const MOCK_FEELS_LIKE_TEMP    = 34;                     // 체감온도 (°C) - /api/weather 연동 실패 시 폴백
 const MOCK_ACTUAL_TEMP        = 31;                     // 실제 기온 (°C) - 체감온도와 구분해서 보여주는 부가정보
+const MOCK_HUMIDITY           = 65;                      // 습도 (%) - 불쾌지수 계산용, /api/weather 연동 실패 시 폴백
 const MOCK_TOTAL_REGIONS      = 256;                    // 전국 시군구 총 개수 (2026-07 기준)
 const MOCK_RANK_PERCENT       = 7;                       // 상위 % (더울수록 상위)
 const MOCK_CITY_RANK          = 16;                      // 전국 체감온도 순위 (1위=가장 더움)
@@ -102,6 +103,8 @@ let isUsingDefaultRegion = false;
 // 실패(로컬에서 vercel dev 없이 index.html만 열람 등) 시 MOCK 값을 그대로 사용한다.
 let currentFeelsLike = MOCK_FEELS_LIKE_TEMP;
 let currentActualTemp = MOCK_ACTUAL_TEMP;
+let currentHumidity = MOCK_HUMIDITY;
+let currentSimilarRegion = null; // { name, temp, diff } - 전국에서 체감온도가 가장 비슷한 지역 (F11)
 let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
 
 // /api/ranking(전국 256개 시군구, 시간당 갱신) 연동 성공 시 교체되는 순위 관련 값들.
@@ -120,7 +123,9 @@ let currentNationwideAverageTemp = MOCK_NATIONWIDE_AVERAGE_TEMP;
 
 /* ============================================================
    체감온도 구간 시스템 (디자인시스템 v1 공용 브래킷)
-   - 33도↑ 더움 / 35도↑ 매우 더움 / 38도↑ 폭염 / 열대야(21~06시 & 25도↑)
+   - 30도↑ 약간 더움 / 33도↑ 더움 / 35도↑ 매우 더움 / 38도↑ 폭염 / 열대야(21~06시 & 25도↑)
+   - (2026-07-17 갱신) "쾌적" 기준이 33도라 30도대 초반도 쾌적으로 뜨는 게 체감과
+     안 맞는다는 피드백 반영 - 30도 구간에 warm(약간 더움)을 신설해 세분화.
    - 후킹카피 문구 선택, 뱃지·히어로·CTA·랭킹 막대 등의 "온도 색상"이
      모두 이 하나의 구간 판정 로직(getHeatBracketKey)을 공유한다.
 ============================================================ */
@@ -134,6 +139,7 @@ function getHeatBracketKey(feelsLikeTemp, night = isNightHour()){
   if(feelsLikeTemp >= 38) return 'extreme';
   if(feelsLikeTemp >= 35) return 'veryHot';
   if(feelsLikeTemp >= 33) return 'hot';
+  if(feelsLikeTemp >= 30) return 'warm';
   return 'cool';
 }
 
@@ -141,11 +147,29 @@ function getHeatBracketKey(feelsLikeTemp, night = isNightHour()){
 // 탭/"우리 동네" 칩 등 UI 내비게이션은 브랜드 민트 고정 - 각 CSS 규칙에서 별도 처리)
 const HEAT_BRACKET_COLOR_VAR = {
   cool: '--heat-cool',
+  warm: '--heat-warm',
   hot: '--heat-hot',
   veryHot: '--heat-veryhot',
   extreme: '--heat-extreme',
   tropicalNight: '--heat-tropicalnight',
 };
+
+/* ============================================================
+   불쾌지수 (F9, 2026-07-17) — 기상청 공식과 동일
+   DI = 0.81*T + 0.01*H*(0.99*T-14.3) + 46.3 (T:기온°C, H:습도%)
+   체감온도(바람 포함)와 산출 공식이 달라 같은 날씨에도 수치가 다르게 나올 수 있다 -
+   색상 범례 시트에 별도 설명 문단을 둔 이유.
+============================================================ */
+function computeDiscomfortIndex(tempC, humidityPct){
+  return 0.81 * tempC + 0.01 * humidityPct * (0.99 * tempC - 14.3) + 46.3;
+}
+function getDiscomfortLabel(di){
+  if(di < 68) return '쾌적';
+  if(di < 75) return '보통';
+  if(di < 80) return '약간 높음';
+  if(di < 83) return '높음';
+  return '매우 높음';
+}
 
 // 해당 온도의 CSS 변수 참조 문자열(예: "var(--heat-hot)")을 반환 - 인라인 style에 바로 쓸 수 있음
 function getHeatColorVarRef(feelsLikeTemp, night = isNightHour()){
@@ -174,7 +198,11 @@ const HOOK_COPY_TEMPLATES = {
     ["{region}, 오늘은 동남아 여행 갈 필요 없는", "동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!"],
     ["{region}, 가만히 있어도 땀이 주르륵.", "아이스아메리카노는 선택 아닌 필수인 날씨!"],
   ],
-  cool: [ // 33도 미만 - 쾌적
+  warm: [ // 30도 이상 - 약간 더움
+    ["{region}, 그늘 밖은 슬슬 후끈한", "낌새예요. 반팔이 이제 정답인 날씨네요!"],
+    ["{region}, 아직 폭염까진 아니지만", "이미 더위가 시작된 느낌이에요!"],
+  ],
+  cool: [ // 30도 미만 - 쾌적
     ["{region}, 오늘은 그럭저럭 견딜만한", "더위예요. 그래도 수분 보충은 잊지 마세요!"],
   ],
 };
@@ -221,6 +249,9 @@ function renderScreen1(){
   document.getElementById('s1-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s1-sub').textContent = `기상청 동네예보 기준 · ${currentUpdatedLabel}`;
   document.getElementById('s1-actual-temp-value').textContent = fmtTemp(currentActualTemp);
+  const discomfortIndex = computeDiscomfortIndex(currentActualTemp, currentHumidity);
+  document.getElementById('s1-discomfort-value').textContent = Math.round(discomfortIndex);
+  document.getElementById('s1-discomfort-label').textContent = getDiscomfortLabel(discomfortIndex);
   document.getElementById('s1-helper-region').textContent = currentRegionName;
   document.getElementById('s1-hook-copy').innerHTML =
     currentHookCopyLines.map((line,i)=>{
@@ -251,6 +282,18 @@ function renderCityBarList(){
         </div>
       </div>`;
   }).join('');
+}
+
+// F11: 체감온도가 가장 비슷한 지역 한 줄 안내 (내 지역이 아직 확정 안 됐으면 숨김)
+function renderSimilarRegion(){
+  const el = document.getElementById('similar-region-note');
+  if(!el) return;
+  if(!currentSimilarRegion){
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+  el.textContent = `체감온도가 가장 비슷한 곳은 ${currentSimilarRegion.name}이에요 (${fmtTemp(currentSimilarRegion.temp)}°, ${fmtTemp(currentSimilarRegion.diff)}° 차이)`;
 }
 
 // /api/dong-ranking이 해당 도시에 동 데이터가 없다고(404) 응답했을 때 true - 예외처리 안내로 전환
@@ -349,6 +392,7 @@ async function loadRealWeather(){
 
     currentFeelsLike = data.feelsLike;
     if(typeof data.temp === 'number') currentActualTemp = data.temp;
+    if(typeof data.humidity === 'number') currentHumidity = data.humidity;
     const updated = new Date(data.updatedAt);
     currentUpdatedLabel = `${updated.getHours()}:${String(updated.getMinutes()).padStart(2,'0')} 기준 (실시간)`;
     currentHookCopyLines = getHookCopyLines(currentRegionName, currentFeelsLike);
@@ -362,6 +406,20 @@ async function loadRealWeather(){
     weatherLoadFailed = true;
   }
   updateDataErrorBanner();
+}
+
+// 전국 256개 시군구 중 내 지역과 체감온도 차이가 가장 적은 지역을 찾는다 (F11, 새 API 없이
+// 이미 캐싱된 /api/ranking 데이터로 계산). 나 자신은 제외.
+function findSimilarRegion(regions, mine){
+  let best = null;
+  for(const r of regions){
+    if(r.nameKo === mine.nameKo || typeof r.feelsLike !== 'number') continue;
+    const diff = Math.abs(r.feelsLike - mine.feelsLike);
+    if(!best || diff < best.diff){
+      best = { name: r.nameKo, temp: r.feelsLike, diff };
+    }
+  }
+  return best;
 }
 
 // 전체 랭킹에서 상위 3위 + (필요 시 생략 표시) + 내 지역 주변 구간만 뽑아 화면2 막대 리스트 형태로 변환
@@ -395,6 +453,9 @@ async function loadRanking(){
     if(mine){
       currentRankPercent = mine.percentile;
       currentCityRank = mine.rank;
+      currentSimilarRegion = findSimilarRegion(data.regions, mine);
+    }else{
+      currentSimilarRegion = null;
     }
     const nationwideTemps = data.regions.map(r => r.feelsLike).filter(t => typeof t === 'number');
     if(nationwideTemps.length > 0){
@@ -404,6 +465,7 @@ async function loadRanking(){
 
     renderScreen1();
     renderCityBarList();
+    renderSimilarRegion();
     renderScreen3();
     // loadDongRanking()과 병렬로 실행되므로, 동 단위 화면이 이미 먼저 렌더링됐더라도
     // 방금 계산한 전국 평균으로 다시 그려서 최신값을 반영한다.
@@ -541,7 +603,8 @@ async function saveShareCardImage(){
   try{
     const canvas = await html2canvas(card, { backgroundColor: null, scale: 2 });
     const dataUrl = canvas.toDataURL('image/png');
-    const fileName = `오늘체감온도_${currentRegionName}.png`;
+    const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const fileName = `오늘체감온도_${currentRegionName}_${dateStr}.png`;
 
     try{
       const base64 = dataUrl.split(',')[1];
@@ -560,6 +623,21 @@ async function saveShareCardImage(){
   }
 }
 
+// (2026-07-17 신규, F4 OG 이미지 개인화) 공유 URL을 그냥 앱 홈(location.href)으로 보내면
+// 카카오톡/문자 미리보기가 항상 똑같은 정적 og-image.png를 보여준다 - 공유하는 사람의 실제
+// 온도/순위가 반영된 이미지가 뜨도록, 그 값들을 쿼리로 담은 /api/share 링크를 대신 공유한다.
+// /api/share가 og:image로 /api/og(동적 이미지 생성)를 가리키는 봇 전용 HTML을 반환하고,
+// 실제 사람이 그 링크를 열면 앱 홈으로 즉시 리다이렉트된다.
+function buildShareUrl(){
+  const params = new URLSearchParams({
+    region: currentRegionName,
+    temp: fmtTemp(currentFeelsLike),
+    rank: String(currentRankPercent),
+    copy: currentHookCopyLines.join(' '),
+  });
+  return `${API_BASE}/api/share?${params.toString()}`;
+}
+
 // 안드로이드/iOS 단말 기본 공유 시트(어떤 앱으로 공유할지 사용자가 고르는 OS 팝업).
 // (2026-07-16 수정) 실기기 QR 테스트에서 "항상 텍스트 복사로만 진행된다"는 버그 확인 -
 // 앱인토스 RN WebView엔 navigator.share가 아예 없어서(falsy) 매번 클립보드 폴백만 타고
@@ -569,7 +647,8 @@ async function shareResult(){
   trackClick({ log_name: 'share_native' });
   const title = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`;
   const text = currentHookCopyLines.join(' ');
-  const message = `${title}\n${text}\n${location.href}`;
+  const shareUrl = buildShareUrl();
+  const message = `${title}\n${text}\n${shareUrl}`;
 
   try{
     await withTimeout(tossShare({ message }), 5000);
@@ -580,7 +659,7 @@ async function shareResult(){
 
   if(navigator.share){
     try{
-      await navigator.share({ title, text, url: location.href });
+      await navigator.share({ title, text, url: shareUrl });
       return;
     }catch(err){
       if(err.name === 'AbortError') return; // 사용자가 공유 시트에서 취소함 - 실패 아님
@@ -732,6 +811,16 @@ async function setStoredConsent(value){
 ============================================================ */
 const CHANGELOG = [
   {
+    version: '2026-07-17',
+    summary: '체감온도 구간을 더 촘촘하게 나눴어요',
+    detail: [
+      '30도부터 "약간 더움"으로 표시해 체감과 더 가깝게 맞췄어요',
+      '체감온도 옆에 불쾌지수도 함께 보여드려요',
+      '순위 화면에 우리 동네와 체감온도가 가장 비슷한 지역을 알려드려요',
+      '공유하기 링크를 열면 실제 우리 동네 온도가 담긴 미리보기 이미지가 떠요',
+    ],
+  },
+  {
     version: '2026-07-16-2',
     summary: '이미지 저장·공유하기가 다시 잘 돼요',
     detail: [
@@ -831,10 +920,12 @@ function stopLocatingMessages(){
 let tempRollTimer = null;
 function startTempRollAnimation(){
   const el = document.getElementById('s1-temp');
-  // 앞자리 "3"은 고정, 뒷자리만 0.8초마다 랜덤하게 바뀐다 - 자릿수 전체가 빠르게
-  // 돌면 산만해서(사용자 피드백) 훨씬 차분한 속도/폭으로 조정.
+  // 뒷자리는 0.8초마다 랜덤하게 바뀐다 - 자릿수 전체가 빠르게 돌면 산만해서(사용자
+  // 피드백) 훨씬 차분한 속도/폭으로 조정. 앞자리는 (2026-07-17 수정) "3"으로 고정돼
+  // 있었는데 30도 미만인 날도 많아 2/3을 번갈아 보여주도록 변경.
   tempRollTimer = setInterval(() => {
-    el.textContent = '3' + Math.floor(Math.random() * 10);
+    const tens = Math.random() < 0.5 ? '2' : '3';
+    el.textContent = tens + Math.floor(Math.random() * 10);
   }, 800);
 }
 function stopTempRollAnimation(){
@@ -855,6 +946,12 @@ async function bootWithSkeleton(loaderFn, { locating = false, maxWaitMs = 20000 
   }
   await Promise.race([loaderFn(), sleep(maxWaitMs)]);
   stopTempRollAnimation();
+  // (2026-07-17 수정) loaderFn은 날씨/랭킹/동 데이터를 병렬로 기다리는데, 그중 날씨가 먼저
+  // 끝나 실제 온도를 렌더링해도 롤링 애니메이션은 나머지가 끝날 때까지 계속 돌고 있어서 그
+  // 사이 타이밍에 따라 무작위 숫자가 실제 온도 위에 그대로 남을 수 있었다(육안 확인 - 앞자리를
+  // "3" 고정에서 "2/3" 교차로 바꾸니 선선한 날에 엉뚱한 숫자가 남는 문제로 드러남). 애니메이션을
+  // 멈춘 직후 한 번 더 그려서 항상 최종 실제값으로 확정한다.
+  renderScreen1();
   document.body.classList.remove('is-loading');
   if(locating){
     document.body.classList.remove('is-locating');
@@ -906,6 +1003,23 @@ async function startLocationFlow(){
 // 사용자 식별키(익명 해시) - 로그인 없이 사용자를 구분하기 위한 최소 요건.
 // 계정/개인화 기능이 없는 앱이라 지금은 저장만 해두고(향후 어뷰징 방지 등에 활용 가능),
 // 실패해도(구버전 앱, 브라우저 단독 접속 등) 화면 동작에는 영향을 주지 않는다.
+/* ============================================================
+   F8: "무더위 배틀" 크로스 프로모션 배너 (2026-07-17)
+   - 더위배틀 문서(F7)에 예약된 "역방향 배너" 자리. 더위배틀이 아직 개발 중이라
+     실제 앱이 콘솔에 없는 상태 - 딥링크 대상이 존재해야 배너를 켠다.
+   - 더위배틀 출시가 확인되면 이 플래그만 true로 바꾸면 된다.
+============================================================ */
+const HEATBATTLE_LIVE = false;
+function initHeatBattleBanner(){
+  const el = document.getElementById('heatbattle-banner');
+  if(el) el.style.display = HEATBATTLE_LIVE ? 'flex' : 'none';
+}
+function openHeatBattle(){
+  trackClick({ log_name: 'cross_promo_heatbattle' });
+  // 오늘 확인된 intoss://{appName} 패턴을 형제 앱에도 그대로 적용 (F7 딥링크 근거)
+  location.href = 'intoss://mudeowebattle';
+}
+
 let currentUserKey = null;
 async function initUserKey(){
   try{
@@ -922,6 +1036,7 @@ startLocationFlow();
 initUserKey();
 initUpdateNote();
 initSafeArea();
+initHeatBattleBanner();
 trackScreen({ log_name: 'screen_view', screen: currentScreenNum });
 
 // ES 모듈은 top-level 선언이 전역(window)으로 노출되지 않는다.
@@ -939,4 +1054,5 @@ Object.assign(window, {
   openLocationConsent,
   toggleUpdateNoteExpand,
   dismissUpdateNote,
+  openHeatBattle,
 });
