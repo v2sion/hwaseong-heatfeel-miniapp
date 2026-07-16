@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets, closeView } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets, closeView, share as tossShare, saveBase64Data } from '@apps-in-toss/web-framework';
 import html2canvas from 'html2canvas-pro';
 
 // 앱인토스로 패키징되면 정적 자산이 Toss 도메인(apps.tossmini.com 등)에서 서빙되므로,
@@ -522,10 +522,15 @@ function showToast(msg){
    공유 기능: 이미지 저장 / 기본 공유하기
 ============================================================ */
 
-// 공유카드를 캡처해서 PNG로 다운로드. 서버/외부 API 없이 클라이언트에서 완결.
+// 공유카드를 캡처해서 PNG로 저장. 서버/외부 API 없이 클라이언트에서 완결.
 // html2canvas(원본)는 oklch()/color-mix() 같은 최신 CSS 색상 함수를 못 읽어서
 // "Attempting to parse an unsupported color function" 에러로 항상 실패했다 -
 // 이 프로젝트 색상 시스템 전체가 oklch 기반이라 html2canvas-pro(포크, 최신 CSS 색상 함수 지원)로 교체.
+//
+// (2026-07-16 수정) 실기기 QR 테스트에서 "눌러도 아무 반응이 없다"는 버그 확인 - <a download>로
+// 브라우저 다운로드를 트리거하는 방식은 앱인토스 RN WebView엔 다운로드 매니저가 연결돼 있지
+// 않아 조용히 아무 일도 안 일어난다. saveBase64Data() 네이티브 브릿지로 기기에 직접 저장하고,
+// 브릿지가 없는 일반 브라우저(로컬/Vercel 단독 접속 데모)에서만 기존 다운로드 링크로 폴백한다.
 async function saveShareCardImage(){
   trackClick({ log_name: 'save_image' });
   const card = document.querySelector('#screen-3 .share-card');
@@ -535,10 +540,19 @@ async function saveShareCardImage(){
   }
   try{
     const canvas = await html2canvas(card, { backgroundColor: null, scale: 2 });
-    const link = document.createElement('a');
-    link.download = `오늘체감온도_${currentRegionName}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    const dataUrl = canvas.toDataURL('image/png');
+    const fileName = `오늘체감온도_${currentRegionName}.png`;
+
+    try{
+      const base64 = dataUrl.split(',')[1];
+      await withTimeout(saveBase64Data({ data: base64, fileName, mimeType: 'image/png' }), 5000);
+    }catch(bridgeErr){
+      console.warn('saveBase64Data 브릿지 실패(브라우저 환경 등), 다운로드 링크로 대체:', bridgeErr);
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = dataUrl;
+      link.click();
+    }
     showToast('이미지가 저장되었습니다');
   }catch(err){
     console.warn('이미지 저장 실패:', err);
@@ -547,11 +561,22 @@ async function saveShareCardImage(){
 }
 
 // 안드로이드/iOS 단말 기본 공유 시트(어떤 앱으로 공유할지 사용자가 고르는 OS 팝업).
-// 지원하지 않는 환경(주로 데스크톱 브라우저)에서는 클립보드 복사로 대체한다.
+// (2026-07-16 수정) 실기기 QR 테스트에서 "항상 텍스트 복사로만 진행된다"는 버그 확인 -
+// 앱인토스 RN WebView엔 navigator.share가 아예 없어서(falsy) 매번 클립보드 폴백만 타고
+// 있었다. 앱인토스 네이티브 공유 시트 브릿지(share())를 우선 사용하고, 브릿지가 없는
+// 일반 브라우저에서만 navigator.share → 클립보드 복사 순으로 대체한다.
 async function shareResult(){
   trackClick({ log_name: 'share_native' });
   const title = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`;
   const text = currentHookCopyLines.join(' ');
+  const message = `${title}\n${text}\n${location.href}`;
+
+  try{
+    await withTimeout(tossShare({ message }), 5000);
+    return;
+  }catch(err){
+    console.warn('네이티브 공유 시트 브릿지 실패(브라우저 환경 등), 다음 방식으로 대체:', err);
+  }
 
   if(navigator.share){
     try{
@@ -563,12 +588,11 @@ async function shareResult(){
     }
   }
 
-  const clipboardText = `${title}\n${text}\n${location.href}`;
   try{
-    await withTimeout(setClipboardText(clipboardText), 1500);
+    await withTimeout(setClipboardText(message), 1500);
   }catch(err){
     try{
-      await navigator.clipboard.writeText(clipboardText);
+      await navigator.clipboard.writeText(message);
     }catch(err2){
       showToast('공유하기에 실패했습니다');
       return;
