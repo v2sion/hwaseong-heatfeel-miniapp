@@ -57,6 +57,8 @@ export default async function handler(req, res){
 <meta property="og:title" content="${escapeHtml(title)}" />
 <meta property="og:description" content="${escapeHtml(copy)}" />
 <meta property="og:image" content="${OG_IMAGE_URL}" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta http-equiv="refresh" content="0; url=${APP_ORIGIN}/" />
