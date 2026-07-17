@@ -249,13 +249,14 @@
   }
   .update-note-body{
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     gap:6px;
     min-width:0;
     flex:1;
   }
   .update-note-badge{
     flex-shrink:0;
+    margin-top:1px;
     background:var(--mint-700);
     color:#fff;
     font-size:10px;
@@ -268,10 +269,17 @@
     font-size:12.5px;
     font-weight:600;
     color:var(--ink-700);
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
+    line-height:1.35;
     min-width:0;
+    /* (2026-07-17 수정) 한 줄 강제(nowrap+ellipsis)였는데, 요약 문구가 조금만 길어져도
+       뒷부분이 잘려 보이는 문제가 있었음(길이 여유가 거의 없는 좁은 pill이라 발생).
+       -webkit-line-clamp로 먼저 시도했으나 실기기/WebView마다 지원이 갈릴 수 있는
+       비표준 트릭이라(검증 중 렌더러가 이를 무시하는 사례 확인) 신뢰할 수 없다고 판단 -
+       대신 그냥 자연스럽게 줄바꿈되도록 둬서 어떤 환경에서도 절대 잘리지 않게 함.
+       "훑고 지나가는" 캐주얼한 톤은 pill 형태 자체로 유지, summary는 2줄 이내 권장
+       (06_업데이트_운영_프로세스.md 참고). */
+    word-break:keep-all;
+    overflow-wrap:break-word;
   }
   .update-note-close{
     position:absolute;
