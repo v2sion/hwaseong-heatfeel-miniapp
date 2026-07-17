@@ -313,14 +313,18 @@ function renderSimilarRegion(){
     return;
   }
   el.style.display = '';
-  el.textContent = `체감온도가 가장 비슷한 곳은 ${currentSimilarRegion.name}이에요 (${fmtTemp(currentSimilarRegion.temp)}°, ${fmtTemp(currentSimilarRegion.diff)}° 차이)`;
+  // (2026-07-17 수정) 한 문장으로 이어붙이면 화면 폭에 따라 어중간한 지점에서 줄바꿈돼
+  // 부자연스러웠음 - "~은" 뒤에서 의도적으로 끊어 항상 2줄로 보이게 함.
+  el.innerHTML = `
+    <span>체감온도가 가장 비슷한 곳은</span>
+    <span>${currentSimilarRegion.name}이에요 (${fmtTemp(currentSimilarRegion.temp)}°, ${fmtTemp(currentSimilarRegion.diff)}° 차이)</span>
+  `;
 }
 
 // /api/dong-ranking이 해당 도시에 동 데이터가 없다고(404) 응답했을 때 true - 예외처리 안내로 전환
 let dongDataUnavailable = false;
 
 function renderDongList(){
-  document.getElementById('s2-dong-title-region').textContent = currentRegionName;
   const wrap = document.getElementById('dong-list');
 
   if(dongDataUnavailable){
