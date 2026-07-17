@@ -107,6 +107,21 @@ let currentHumidity = MOCK_HUMIDITY;
 let currentSimilarRegion = null; // { name, temp, diff } - 전국에서 체감온도가 가장 비슷한 지역 (F11)
 let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
 
+// (2026-07-17 신규) 화면1 실시간 조회 / 화면2 시군구 배치수집 / 화면2 동 단위 온디맨드 캐싱이
+// 서로 다른 시점의 스냅샷이라 체감온도 수치가 미묘하게 어긋나 보인다는 피드백 - 세 값을 실제로
+// 완전히 동일 시점으로 통일하려면 시군구 256개를 매 사용자 요청마다 실시간 조회해야 해서
+// OpenWeatherMap 무료 티어(월 100만 호출)를 감당 못 한다. 대신 화면2의 "오늘 15:00 기준"이
+// 실제 데이터와 무관한 하드코딩 목업 문구였던 것부터 바로잡는다 - 각 패널이 실제로 몇 시
+// 데이터를 보여주는 중인지 정직하게 표시하면, 수치가 조금씩 다른 이유도 사용자가 납득할 수 있다.
+let currentRankingUpdatedLabel = MOCK_UPDATED_AT_LABEL;
+let currentDongUpdatedLabel = MOCK_UPDATED_AT_LABEL;
+
+function formatUpdatedAt(isoString, suffix){
+  const d = new Date(isoString);
+  if(Number.isNaN(d.getTime())) return null;
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} ${suffix}`;
+}
+
 // /api/ranking(전국 256개 시군구, 시간당 갱신) 연동 성공 시 교체되는 순위 관련 값들.
 // 실패 시 MOCK 값을 그대로 사용한다.
 let currentTotalRegions = MOCK_TOTAL_REGIONS;
@@ -253,15 +268,20 @@ function renderScreen1(){
   document.getElementById('s1-discomfort-value').textContent = Math.round(discomfortIndex);
   document.getElementById('s1-discomfort-label').textContent = getDiscomfortLabel(discomfortIndex);
   document.getElementById('s1-helper-region').textContent = currentRegionName;
+  // (2026-07-17 수정) 템플릿 저자가 나눠둔 두 조각 사이에 무조건 <br/>를 넣었더니, 실제
+  // 화면 폭에서 자연 줄바꿈까지 겹쳐 문장이 이상한 지점에서 끊겨 보이는 경우가 있었음 -
+  // 공백으로 이어붙여 하나의 문장으로 두고, body 전역의 word-break:keep-all(단어 중간에서
+  // 안 끊김) + overflow-wrap:break-word에 맡겨 화면 폭에 맞게 자연스럽게 흐르도록 함.
   document.getElementById('s1-hook-copy').innerHTML =
     currentHookCopyLines.map((line,i)=>{
       // 첫 줄의 지역명만 강조
       return i===0 ? line.replace(currentRegionName, `<span class="accent">${currentRegionName}</span>`) : line;
-    }).join('<br/>');
+    }).join(' ');
   document.getElementById('use-my-location-btn').style.display = isUsingDefaultRegion ? 'inline-flex' : 'none';
 }
 
 function renderCityBarList(){
+  document.getElementById('s2-rank-updated').textContent = currentRankingUpdatedLabel;
   const wrap = document.getElementById('city-bar-list');
   const maxTemp = Math.max(...currentCityRanking.filter(r=>r.temp!=null).map(r=>r.temp));
   wrap.innerHTML = currentCityRanking.map(r=>{
@@ -305,6 +325,7 @@ function renderDongList(){
 
   if(dongDataUnavailable){
     document.getElementById('hs-avg-temp-label').textContent = '-';
+    document.getElementById('s2-dong-updated').textContent = '';
     wrap.innerHTML = `
       <div class="dong-empty-state">
         <div class="dong-empty-icon"></div>
@@ -314,6 +335,7 @@ function renderDongList(){
     return;
   }
 
+  document.getElementById('s2-dong-updated').textContent = currentDongUpdatedLabel;
   document.getElementById('hs-avg-temp-label').textContent = fmtTemp(currentNationwideAverageTemp);
   wrap.innerHTML = currentDongRanking.map(d=>{
     const diff = +(d.temp - currentNationwideAverageTemp).toFixed(1);
@@ -343,7 +365,7 @@ function renderScreen3(){
   document.getElementById('s3-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s3-rank-line').textContent =
     `전국 ${currentTotalRegions}개 시군구 중 ${currentCityRank}위`;
-  document.getElementById('s3-hook-copy').innerHTML = currentHookCopyLines.join('<br/>');
+  document.getElementById('s3-hook-copy').innerHTML = currentHookCopyLines.join(' ');
   document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
   document.getElementById('s3-watermark').textContent = MOCK_CHALLENGE_HASHTAG;
 }
@@ -393,8 +415,7 @@ async function loadRealWeather(){
     currentFeelsLike = data.feelsLike;
     if(typeof data.temp === 'number') currentActualTemp = data.temp;
     if(typeof data.humidity === 'number') currentHumidity = data.humidity;
-    const updated = new Date(data.updatedAt);
-    currentUpdatedLabel = `${updated.getHours()}:${String(updated.getMinutes()).padStart(2,'0')} 기준 (실시간)`;
+    currentUpdatedLabel = formatUpdatedAt(data.updatedAt, '기준 (실시간)') || currentUpdatedLabel;
     currentHookCopyLines = getHookCopyLines(currentRegionName, currentFeelsLike);
     weatherLoadFailed = false;
 
@@ -449,6 +470,7 @@ async function loadRanking(){
     const mine = data.regions.find(r => r.nameKo === currentRegionMatchName);
 
     currentTotalRegions = data.totalRegions;
+    currentRankingUpdatedLabel = formatUpdatedAt(data.updatedAt, '수집 기준') || currentRankingUpdatedLabel;
     currentCityRanking = buildCityRankingWindow(data.regions, currentRegionMatchName);
     if(mine){
       currentRankPercent = mine.percentile;
@@ -496,6 +518,7 @@ async function loadDongRanking(){
     }
 
     dongDataUnavailable = false;
+    currentDongUpdatedLabel = formatUpdatedAt(data.updatedAt, '수집 기준') || currentDongUpdatedLabel;
     // 위치 동의를 안 한 상태(기본 지역 표시 중)라면 "내 동네"를 알 수 없으니, 대신 그 지역에서
     // 가장 더운 동(data.dong[0], rank 1)을 "지금 가장 핫한 동네"로 강조한다.
     if(isUsingDefaultRegion) currentMyDongName = data.dong[0]?.name ?? null;
@@ -840,6 +863,8 @@ const CHANGELOG = [
       '체감온도 옆에 불쾌지수도 함께 보여드려요',
       '순위 화면에 우리 동네와 체감온도가 가장 비슷한 지역을 알려드려요',
       '공유 링크가 더 짧고 깔끔해지고, 미리보기 이미지도 더 안정적으로 떠요',
+      '시/동 순위 화면에 실제 몇 시 기준 데이터인지 정확히 표시해요',
+      '체감 코멘트 줄바꿈이 더 자연스러워졌어요',
     ],
   },
   {
