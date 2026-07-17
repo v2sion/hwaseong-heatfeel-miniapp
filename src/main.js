@@ -235,7 +235,32 @@ function getHookCopyLines(regionName, feelsLikeTemp){
   return template.map(line => line.replace('{region}', regionName));
 }
 
+/* ============================================================
+   밈 오마주 (F3 고도화, 2026-07-18): 기본 후킹카피 옆에 세트로 노출되는
+   서브 텍스트. 더위 한정이 아니라 그 시점 널리 쓰이는 일반 밈 중 브래킷
+   분위기에 맞는 것을 큐레이션 - 후킹카피를 대체하지 않고 추가로만 붙는다.
+   HOOK_COPY_TEMPLATES와 동일하게 배열 구조로 둬서 나중에 브래킷당 여러
+   개로 늘려도(교체 주기 등) pickTemplate()을 그대로 재사용할 수 있다.
+============================================================ */
+const MEME_COPY_TEMPLATES = {
+  tropicalNight: ["잠은 다음 생에... 난리자베스"],
+  extreme: ["그냥 파라파라나 춰야겠다"],
+  veryHot: ["이 더위 red red, 그늘도 red red"],
+  hot: ["나 오늘 그늘막인데~ 손님이 끊이질 않네"],
+  warm: ["슬슬 덥자베스... 예열 중"],
+  cool: ["오늘은 그린그린 하네요 🤙"],
+};
+
+function getMemeCopy(regionName, feelsLikeTemp){
+  const bracket = getHeatBracketKey(feelsLikeTemp);
+  const list = MEME_COPY_TEMPLATES[bracket];
+  if(!list || list.length === 0) return '';
+  const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}-meme`;
+  return pickTemplate(list, seedKey);
+}
+
 let currentHookCopyLines = getHookCopyLines(currentRegionName, MOCK_FEELS_LIKE_TEMP);
+let currentMemeCopy = getMemeCopy(currentRegionName, MOCK_FEELS_LIKE_TEMP);
 
 /* ============================================================
    RENDER
@@ -277,6 +302,7 @@ function renderScreen1(){
       // 첫 줄의 지역명만 강조
       return i===0 ? line.replace(currentRegionName, `<span class="accent">${currentRegionName}</span>`) : line;
     }).join(' ');
+  document.getElementById('s1-meme-copy').textContent = currentMemeCopy;
   document.getElementById('use-my-location-btn').style.display = isUsingDefaultRegion ? 'inline-flex' : 'none';
 }
 
@@ -369,7 +395,8 @@ function renderScreen3(){
   document.getElementById('s3-temp').textContent = fmtTemp(currentFeelsLike);
   document.getElementById('s3-rank-line').textContent =
     `전국 ${currentTotalRegions}개 시군구 중 ${currentCityRank}위`;
-  document.getElementById('s3-hook-copy').innerHTML = currentHookCopyLines.join(' ');
+  document.getElementById('s3-hook-copy').innerHTML =
+    `${currentHookCopyLines.join(' ')}<span class="meme-line">${currentMemeCopy}</span>`;
   document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
   document.getElementById('s3-watermark').textContent = MOCK_CHALLENGE_HASHTAG;
 }
@@ -421,6 +448,7 @@ async function loadRealWeather(){
     if(typeof data.humidity === 'number') currentHumidity = data.humidity;
     currentUpdatedLabel = formatUpdatedAt(data.updatedAt, '기준 (실시간)') || currentUpdatedLabel;
     currentHookCopyLines = getHookCopyLines(currentRegionName, currentFeelsLike);
+    currentMemeCopy = getMemeCopy(currentRegionName, currentFeelsLike);
     weatherLoadFailed = false;
 
     renderScreen1();
@@ -664,7 +692,7 @@ async function buildShareUrl(){
     region: currentRegionName,
     temp: fmtTemp(currentFeelsLike),
     rank: String(currentRankPercent),
-    copy: currentHookCopyLines.join(' '),
+    copy: `${currentHookCopyLines.join(' ')} ${currentMemeCopy}`,
   };
   try{
     const res = await withTimeout(fetch(`${API_BASE}/api/shorten`, {
@@ -691,7 +719,7 @@ async function buildShareUrl(){
 async function shareResult(){
   trackClick({ log_name: 'share_native' });
   const title = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`;
-  const text = currentHookCopyLines.join(' ');
+  const text = `${currentHookCopyLines.join(' ')} ${currentMemeCopy}`;
   const shareUrl = await buildShareUrl();
   const message = `${title}\n${text}\n${shareUrl}`;
 
@@ -855,6 +883,17 @@ async function setStoredConsent(value){
      그 버전을 Storage에 기록해두고, 그 버전 이하로는 다시 안 뜬다 - 최초 고지 동의 패턴과 동일.
 ============================================================ */
 const CHANGELOG = [
+  {
+    // (2026-07-18) 직전 배치(2026-07-17)는 사용자가 .ait 등록 후 실기기 테스트에
+    // 들어간 시점 - 새 업데이트 사이클을 시작하는 시점엔 이전 배치가 정상 배포됐다고
+    // 가정하기로 한 규칙(메모리 feedback_ait_console_deploy)에 따라 새 버전으로 분리.
+    version: '2026-07-18',
+    summary: '체감 코멘트에 요즘 유행하는 밈이 섞여요',
+    detail: [
+      '그린그린, 자베스, 파라파라 등 요즘 밈을 체감온도 코멘트에 더했어요',
+      '기존 코멘트는 그대로 두고, 그 아래 한 줄이 추가로 붙어요',
+    ],
+  },
   {
     // (2026-07-17) 최종 배포(콘솔 검토·정식 실배포) 전까지는 그 사이의 모든 변경이 실제
     // 유저에게는 "한 번도 안 본" 상태이므로, 여러 커밋에 걸친 내용이라도 하나의 버전

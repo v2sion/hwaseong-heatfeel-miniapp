@@ -398,7 +398,16 @@
     color:var(--ink-900);
   }
   .hook-card p .accent{ color:var(--ink-900); color:color-mix(in oklch, var(--heat-color) 65%, black); }
-  .hook-card .tag, .hook-card p{ transition:opacity .3s ease; }
+  .hook-card .tag, .hook-card p, .hook-card-meme{ transition:opacity .3s ease; }
+  /* F3 밈 오마주(2026-07-18): 기본 후킹카피 밑에 붙는 서브 텍스트 - 대체가 아니라 추가라
+     본문(p)보다 작고 옅은 톤으로 둬서 위계를 분명히 한다. */
+  .hook-card-meme{
+    position:relative;
+    margin:8px 0 0;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink-300);
+  }
   .hook-card::after{
     content:"";
     position:absolute; inset:0;
@@ -408,7 +417,7 @@
     transition:opacity .3s ease;
     pointer-events:none;
   }
-  body.is-loading .hook-card .tag, body.is-loading .hook-card p{ opacity:0; }
+  body.is-loading .hook-card .tag, body.is-loading .hook-card p, body.is-loading .hook-card-meme{ opacity:0; }
   body.is-loading .hook-card::after{ opacity:1; animation:skeleton-shimmer 1.4s ease-in-out infinite; }
 
   /* 위치 확인 중(is-locating)엔 배경색 없이 회색 스켈레톤(중립 쉬머) 그대로 두고, 그 위에
@@ -418,7 +427,8 @@
   .hook-card .hook-progress{ display:none; }
   body.is-locating .hook-card{ min-height:132px; }
   body.is-locating .hook-card .tag,
-  body.is-locating .hook-card p{ display:none; }
+  body.is-locating .hook-card p,
+  body.is-locating .hook-card-meme{ display:none; }
   body.is-locating .hook-card .hook-progress{
     display:flex;
     position:absolute;
@@ -830,6 +840,13 @@
     border-radius:var(--radius-md);
     position:relative;
   }
+  .share-card .hook .meme-line{
+    display:block;
+    margin-top:6px;
+    font-size:13px;
+    font-weight:600;
+    opacity:.75;
+  }
   .share-card .hashtag{
     margin-top:20px;
     font-size:12px;
@@ -1199,6 +1216,7 @@
             강남구, 오늘은 <span class="accent">동남아 여행</span> 갈 필요 없는<br/>
             동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
           </p>
+          <p class="hook-card-meme" id="s1-meme-copy">그냥 파라파라나 춰야겠다</p>
           <div class="hook-progress">
             <!-- 실제 TDS icon-sun-fill 벡터 (Claude Design 프로젝트의 Figma 원본 path 그대로 반영) -->
             <svg class="progress-icon" width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
