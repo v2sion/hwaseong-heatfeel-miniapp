@@ -247,12 +247,15 @@
     position:relative;
     cursor:pointer;
   }
+  .update-note-content{
+    min-width:0;
+    flex:1;
+  }
   .update-note-body{
     display:flex;
     align-items:flex-start;
     gap:6px;
     min-width:0;
-    flex:1;
   }
   .update-note-badge{
     flex-shrink:0;
@@ -1149,11 +1152,13 @@
              새 버전이 있을 때만 뜨고, 닫으면 그 버전은 Storage에 기록돼 다시 안 뜬다. -->
         <div class="update-note" id="update-note" style="display:none;">
           <button class="update-note-close" onclick="dismissUpdateNote()" aria-label="닫기">×</button>
-          <div class="update-note-body" onclick="toggleUpdateNoteExpand()">
-            <span class="update-note-badge">NEW</span>
-            <span class="update-note-summary" id="update-note-summary"></span>
+          <div class="update-note-content">
+            <div class="update-note-body" onclick="toggleUpdateNoteExpand()">
+              <span class="update-note-badge">NEW</span>
+              <span class="update-note-summary" id="update-note-summary"></span>
+            </div>
+            <ul class="update-note-detail" id="update-note-detail" style="display:none;"></ul>
           </div>
-          <ul class="update-note-detail" id="update-note-detail" style="display:none;"></ul>
         </div>
 
         <!-- 위치 동의를 건너뛴 상태에서만 노출 - 마음이 바뀌면 언제든 다시 동의창을 띄울 수 있게 -->
