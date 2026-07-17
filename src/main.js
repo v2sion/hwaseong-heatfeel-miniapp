@@ -623,18 +623,36 @@ async function saveShareCardImage(){
   }
 }
 
-// (2026-07-17 신규, F4 OG 이미지 개인화) 공유 URL을 그냥 앱 홈(location.href)으로 보내면
+// (2026-07-17 신규, F4 OG 개인화) 공유 URL을 그냥 앱 홈(location.href)으로 보내면
 // 카카오톡/문자 미리보기가 항상 똑같은 정적 og-image.png를 보여준다 - 공유하는 사람의 실제
-// 온도/순위가 반영된 이미지가 뜨도록, 그 값들을 쿼리로 담은 /api/share 링크를 대신 공유한다.
-// /api/share가 og:image로 /api/og(동적 이미지 생성)를 가리키는 봇 전용 HTML을 반환하고,
-// 실제 사람이 그 링크를 열면 앱 홈으로 즉시 리다이렉트된다.
-function buildShareUrl(){
-  const params = new URLSearchParams({
+// 온도/순위가 반영된 제목/설명이 뜨도록, 그 값들을 담은 /api/share 링크를 대신 공유한다.
+// (2026-07-17 2차 개편) region/copy 등 한글 텍스트를 URL 쿼리에 그대로 실으면 인코딩 때문에
+// 200~300자 넘는 링크가 돼 카카오톡에서 "이상한 링크"처럼 보이는 문제가 있었다 - /api/shorten이
+// 이 값들을 Vercel Blob에 미리 저장해두고 짧은 id만 돌려주면, 그 id로 `/s/{id}` 짧은 링크를
+// 만든다. /api/share가 id로 저장된 값을 다시 읽어 렌더링한다(og:image는 고정 이미지로 폐기 -
+// 사용자별로 매번 새로 그리던 동적 이미지는 크롤러가 못 기다릴 만큼 느려서 오히려 미리보기가
+// 안 뜨는 원인이었음). 발급 자체가 실패하면(네트워크 등) 기존 쿼리스트링 방식으로 폴백한다.
+async function buildShareUrl(){
+  const payload = {
     region: currentRegionName,
     temp: fmtTemp(currentFeelsLike),
     rank: String(currentRankPercent),
     copy: currentHookCopyLines.join(' '),
-  });
+  };
+  try{
+    const res = await withTimeout(fetch(`${API_BASE}/api/shorten`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }), 3000);
+    if(res.ok){
+      const data = await res.json();
+      if(data.url) return data.url;
+    }
+  }catch(err){
+    console.warn('짧은 공유 링크 발급 실패, 기존 방식으로 대체:', err);
+  }
+  const params = new URLSearchParams(payload);
   return `${API_BASE}/api/share?${params.toString()}`;
 }
 
@@ -647,7 +665,7 @@ async function shareResult(){
   trackClick({ log_name: 'share_native' });
   const title = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`;
   const text = currentHookCopyLines.join(' ');
-  const shareUrl = buildShareUrl();
+  const shareUrl = await buildShareUrl();
   const message = `${title}\n${text}\n${shareUrl}`;
 
   try{
@@ -810,6 +828,14 @@ async function setStoredConsent(value){
      그 버전을 Storage에 기록해두고, 그 버전 이하로는 다시 안 뜬다 - 최초 고지 동의 패턴과 동일.
 ============================================================ */
 const CHANGELOG = [
+  {
+    version: '2026-07-17-2',
+    summary: '공유 링크가 더 짧고 깔끔해졌어요',
+    detail: [
+      '카카오톡 등으로 공유할 때 링크가 짧고 읽기 쉬운 형태로 바뀌었어요',
+      '공유 미리보기 이미지가 더 안정적으로 떠요',
+    ],
+  },
   {
     version: '2026-07-17',
     summary: '체감온도 구간을 더 촘촘하게 나눴어요',

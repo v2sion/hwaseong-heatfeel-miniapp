@@ -2,6 +2,7 @@
   "installCommand": "npm install",
   "outputDirectory": "dist/web",
   "rewrites": [
-    { "source": "/ranking", "destination": "/index.html" }
+    { "source": "/ranking", "destination": "/index.html" },
+    { "source": "/s/:id", "destination": "/api/share?id=:id" }
   ]
 }

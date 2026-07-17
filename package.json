@@ -10,7 +10,6 @@
   "dependencies": {
     "@apps-in-toss/web-framework": "^2.10.5",
     "@vercel/blob": "^2.6.1",
-    "@vercel/og": "^0.11.1",
     "html2canvas-pro": "^2.2.3"
   },
   "devDependencies": {
