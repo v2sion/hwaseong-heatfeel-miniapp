@@ -1,6 +1,6 @@
 // POST/GET /api/collect?chunk=0&total=5
 // 전국 시군구(250개) 체감온도를 OpenWeatherMap에서 나눠 수집해 Vercel Blob에 캐싱한다.
-// GitHub Actions가 1시간마다 chunk=0..total-1을 순서대로, 각 호출 사이 딜레이를 두고 호출한다.
+// GitHub Actions가 30분마다 chunk=0..total-1을 순서대로, 각 호출 사이 딜레이를 두고 호출한다.
 // (분당 60회 제한 때문에 한 번의 요청으로 250개를 다 모으지 않고, 조각으로 나눠 여러 번 호출하는 구조)
 // CRON_SECRET으로 보호되어 있어 외부에서 무단으로 대량 호출할 수 없다.
 
