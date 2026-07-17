@@ -20,6 +20,16 @@ function randomId() {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // 실기기(.ait로 패키징된 WebView)는 이 API와 다른 origin에서 로드되므로, JSON
+  // POST 전에 브라우저가 보내는 CORS preflight(OPTIONS)를 반드시 성공시켜야 한다 -
+  // 이걸 놓쳐서 POST 자체가 브라우저 단에서 막히고 있었음(2026-07-17 3차 수정).
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
 
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method not allowed' });
