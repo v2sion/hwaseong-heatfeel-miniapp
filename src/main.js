@@ -538,15 +538,23 @@ async function submitComment(){
   const text = input.value.trim();
   if(!text || clientContainsBlockedWord(text)) return;
 
-  trackClick({ log_name: 'comment_submit' });
-  await userKeyPromise;
-  if(!currentUserKey){
-    showToast('지금은 코멘트를 남길 수 없어요');
-    return;
-  }
+  // (2026-07-18 추가) 위 initUserKey() 타임아웃 수정으로 최악의 경우도 5초 안에 끝나긴
+  // 하지만, 그 몇 초 동안 버튼이 아무 표시 없이 가만히 있으면 여전히 "무반응"처럼 보인다 -
+  // 제출 중임을 눈에 보이게 표시(버튼 비활성 + 문구 변경), 끝나면 항상 원상복구한다.
+  const submitBtn = document.getElementById('comment-submit-btn');
+  const originalLabel = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = '등록 중...';
 
-  const bracket = getHeatBracketKey(currentFeelsLike);
   try{
+    trackClick({ log_name: 'comment_submit' });
+    await userKeyPromise;
+    if(!currentUserKey){
+      showToast('지금은 코멘트를 남길 수 없어요');
+      return;
+    }
+
+    const bracket = getHeatBracketKey(currentFeelsLike);
     const res = await withTimeout(fetch(`${API_BASE}/api/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -566,6 +574,9 @@ async function submitComment(){
   }catch(err){
     console.warn('코멘트 등록 실패:', err);
     showToast('코멘트 등록에 실패했어요');
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
   }
 }
 
@@ -1272,7 +1283,11 @@ function openHeatBattle(){
 let currentUserKey = null;
 async function initUserKey(){
   try{
-    const result = await getAnonymousKey();
+    // (2026-07-18 버그 수정) submitComment()가 "await userKeyPromise"로 이 함수의 완료를
+    // 기다리게 되면서, getAnonymousKey()가 이 파일 상단 주석에 이미 경고돼 있던 대로
+    // "reject 대신 Promise가 영영 끝나지 않는" 방식으로 멈추면 제출 버튼이 완전히 무반응
+    // 상태가 됨(실기기 리포트로 확인) - 다른 SDK 호출들과 동일하게 withTimeout으로 감싼다.
+    const result = await withTimeout(getAnonymousKey(), 5000);
     if(result && result !== 'ERROR') currentUserKey = result.hash;
   }catch(err){
     console.warn('사용자 식별키 조회 실패(브라우저 환경 등):', err);

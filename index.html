@@ -570,19 +570,24 @@
      spawnBubble()도 textContent 대신 이 내부 span에 채우도록 함께 수정했다. */
   .bubble{
     position:absolute; bottom:0;
-    display:flex; align-items:center; max-width:78%;
+    display:flex; align-items:center;
     background:var(--white); border:1px solid var(--mint-100);
-    padding:7px 13px; border-radius:var(--radius-pill); box-shadow:var(--shadow-card);
-    font-size:12.5px; font-weight:600; color:var(--ink-700);
+    padding:6px 11px; border-radius:var(--radius-pill); box-shadow:var(--shadow-card);
+    font-size:12px; font-weight:600; color:var(--ink-700);
     animation:bubble-float 5.2s ease-out forwards;
   }
   .bubble-text{
     display:block; min-width:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .bubble.lane-left{ left:4%; }
-  .bubble.lane-center{ left:50%; animation-name:bubble-float-center; }
-  .bubble.lane-right{ right:4%; }
+  /* (2026-07-18 버그 수정) "텍스트가 깨져 보인다"는 리포트의 진짜 원인 - 실제 데이터는
+     멀쩡한데(API 응답으로 재확인), 각 버블에 max-width:78%를 줘서 레인이 3개(좌/중/우)인데도
+     버블 하나가 존 너비 대부분을 차지해 서로 겹쳤다. 겹친 버블들의 배경·그림자·글자가
+     뒤섞여 마치 글자가 깨진 것처럼 보인 것 - 실제로는 텍스트가 아니라 레이아웃 버그였다.
+     레인당 폭을 확실히 나눠 겹치지 않게 한다(합쳐서 94% 이내, 레인 사이 여백 포함). */
+  .bubble.lane-left{ left:2%; max-width:30%; }
+  .bubble.lane-center{ left:50%; max-width:34%; animation-name:bubble-float-center; }
+  .bubble.lane-right{ right:2%; max-width:30%; }
   @keyframes bubble-float{
     0%{ opacity:0; bottom:-4px; }
     10%{ opacity:.62; bottom:6px; }
