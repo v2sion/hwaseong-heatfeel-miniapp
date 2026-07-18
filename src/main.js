@@ -228,9 +228,19 @@ function pickTemplate(list, seedKey){
   return list[hash % list.length];
 }
 
+// (2026-07-18 추가) 날짜를 시드에 넣어 "재방문 시 다른 문구" 요청에 대응. 지역+온도+브래킷만
+// 시드로 쓰면 며칠 뒤 같은 조건(같은 동네, 같은 반올림 온도)이 다시 오면 완전히 같은 문구가
+// 또 뜨는데, 그러면서도 정작 한 세션 안에서 새로고침할 땐 그대로 안정적이길 원해서(기존 설계
+// 의도) - 날짜(하루 단위)를 시드에 추가하면 "하루 안에서는 고정, 날이 바뀌면 달라질 수 있음"이
+// 둘 다 성립한다. 온도 자체가 바뀌면 원래도 문구가 바뀌므로, 실제 체감은 "온도가 같아도 날이
+// 다르면 다른 문구가 나올 수 있다"는 정도로 자연스럽게 다양해진다.
+function todayDateKey(date = new Date()){
+  return `${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`;
+}
+
 function getHookCopyLines(regionName, feelsLikeTemp){
   const bracket = getHeatBracketKey(feelsLikeTemp);
-  const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}`;
+  const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}-${todayDateKey()}`;
   const template = pickTemplate(HOOK_COPY_TEMPLATES[bracket], seedKey);
   return template.map(line => line.replace('{region}', regionName));
 }
@@ -255,7 +265,7 @@ function getMemeCopy(regionName, feelsLikeTemp){
   const bracket = getHeatBracketKey(feelsLikeTemp);
   const list = MEME_COPY_TEMPLATES[bracket];
   if(!list || list.length === 0) return '';
-  const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}-meme`;
+  const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}-meme-${todayDateKey()}`;
   return pickTemplate(list, seedKey);
 }
 
