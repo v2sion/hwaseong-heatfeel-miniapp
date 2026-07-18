@@ -449,8 +449,11 @@ function spawnBubble(text){
   if(!zone) return;
   const el = document.createElement('div');
   const row = BUBBLE_ROWS[bubbleRowCursor % BUBBLE_ROWS.length];
+  // (2026-07-18 3차 수정) 밴드(row)는 겹침 방지용이고, 좌/우는 순수하게 시각적 다양성을
+  // 위해 번갈아 붙인다 - 밴드가 이미 겹침을 막아주므로 좌/우 조합은 아무렇게나 섞여도 안전.
+  const align = bubbleRowCursor % 2 === 0 ? 'align-left' : 'align-right';
   bubbleRowCursor += 1;
-  el.className = `bubble ${row}`;
+  el.className = `bubble ${row} ${align}`;
   // (2026-07-18 버그 수정) 텍스트를 el에 직접 넣지 않고 내부 .bubble-text span에 넣는다 -
   // ellipsis 처리가 이 내부 block 요소에 걸려 있음(index.html .bubble-text 주석 참고).
   const span = document.createElement('span');
@@ -506,8 +509,34 @@ function clientContainsBlockedWord(text){
   return CLIENT_BLOCKLIST.some(word => normalized.includes(word));
 }
 
-function openCommentSheet(){
+// (2026-07-18 버그 수정) 서버가 1일 1코멘트를 429로 거부하면 제출 시점에야 "오늘은 이미
+// 남기셨어요" 토스트를 띄웠는데, 그 시점엔 입력 시트(z-index:30)가 토스트(z-index:20)보다
+// 위에 떠 있어서 토스트가 시트 뒤에 가려 안 보였다(z-index는 아래서 별도로 올려둠). 더
+// 근본적으로는, 애초에 오늘 이미 남겼다는 걸 시트를 열기도 전에 알 수 있으면 시트 자체를
+// 열 필요가 없다 - "+나도 한마디"를 누른 시점에 로컬에 기록해둔 날짜로 먼저 확인한다.
+const COMMENT_LAST_DATE_KEY = 'heatfeel_comment_last_date_v1';
+async function getStoredCommentDate(){
+  try{ return await withTimeout(Storage.getItem(COMMENT_LAST_DATE_KEY), 1500); }
+  catch(err){
+    try{ return localStorage.getItem(COMMENT_LAST_DATE_KEY); }
+    catch(err2){ return null; }
+  }
+}
+async function setStoredCommentDate(value){
+  try{ await withTimeout(Storage.setItem(COMMENT_LAST_DATE_KEY, value), 1500); }
+  catch(err){
+    try{ localStorage.setItem(COMMENT_LAST_DATE_KEY, value); }
+    catch(err2){ /* 저장 실패해도 이번 세션 동작에는 지장 없음 - 서버 429가 최종 방어선 */ }
+  }
+}
+
+async function openCommentSheet(){
   trackClick({ log_name: 'comment_sheet_open' });
+  const lastDate = await getStoredCommentDate();
+  if(lastDate === todayDateKey()){
+    showToast('오늘은 이미 한마디 남기셨어요');
+    return;
+  }
   document.getElementById('comment-overlay').classList.add('show');
 }
 function closeCommentSheet(){
@@ -564,6 +593,9 @@ async function submitComment(){
       body: JSON.stringify({ anonKey: currentUserKey, bracket, text }),
     }), 5000);
     if(res.status === 429){
+      // 로컬 기록과 어긋난 경우(다른 기기 등) 서버가 최종 방어선 - 여기서도 날짜를
+      // 맞춰 저장해 다음부터는 시트를 열기 전에 미리 걸러지게 한다.
+      setStoredCommentDate(todayDateKey());
       showToast('오늘은 이미 한마디 남기셨어요');
       return;
     }
@@ -571,6 +603,7 @@ async function submitComment(){
       showToast('코멘트 등록에 실패했어요');
       return;
     }
+    setStoredCommentDate(todayDateKey());
     spawnBubble(text);
     closeCommentSheet();
     showToast('코멘트가 등록됐어요');

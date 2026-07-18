@@ -570,7 +570,7 @@
      만족. text-overflow:ellipsis는 여전히 .bubble-text(block 자식)에 걸어 안전장치로 남겨
      두되, 20자 이내 코멘트는 이 폭에서 거의 항상 전체가 보인다. */
   .bubble{
-    position:absolute; left:3%;
+    position:absolute;
     display:flex; align-items:center; max-width:85%;
     background:var(--white); border:1px solid var(--mint-100);
     padding:6px 11px; border-radius:var(--radius-pill); box-shadow:var(--shadow-card);
@@ -581,6 +581,10 @@
     display:block; min-width:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
+  /* (2026-07-18 3차 수정) 세로 밴드 분리 덕에 가로 위치는 겹침과 무관해졌으니, 매번 왼쪽에서만
+     나오던 걸 좌/우 번갈아 나오게 해 예전처럼 좀 더 생동감 있게(요청 반영). */
+  .bubble.align-left{ left:3%; }
+  .bubble.align-right{ right:3%; }
   .bubble.row-0{ animation-name:bubble-float-row0; }
   .bubble.row-1{ animation-name:bubble-float-row1; }
   .bubble.row-2{ animation-name:bubble-float-row2; }
@@ -1016,7 +1020,10 @@
     pointer-events:none;
     transition:all .25s;
     white-space:nowrap;
-    z-index:20;
+    /* (2026-07-18 수정) consent-overlay/bracket-info-overlay/comment-overlay가 z-index:30이라,
+       시트가 열려 있는 동안 뜨는 실패 토스트(예: "오늘은 이미 한마디 남기셨어요")가 시트에
+       가려 안 보이는 경우가 있었다 - 어떤 오버레이가 떠 있어도 항상 위에 보이게 올림. */
+    z-index:40;
   }
   .toast.show{ opacity:1; transform:translate(-50%, 0); }
 
@@ -1190,6 +1197,9 @@
     margin-bottom:20px;
   }
   .bracket-basis strong{ display:block; font-size:13px; font-weight:700; color:var(--ink-900); margin-bottom:6px; }
+  /* (2026-07-18 수정) 앞 문단(p) 바로 뒤에 다음 타이틀(불쾌지수 설명)이 붙어 위쪽 여백이
+     없어 가독성이 떨어진다는 피드백 - 첫 타이틀이 아닌 경우에만 위 여백 추가. */
+  .bracket-basis strong:not(:first-child){ margin-top:14px; }
   .bracket-basis p{ margin:0; font-size:12.5px; line-height:1.6; color:var(--ink-500); }
 
   .footer-watermark{
