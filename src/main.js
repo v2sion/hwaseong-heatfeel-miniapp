@@ -494,9 +494,10 @@ function spawnBubble(text){
   const row = BUBBLE_ROWS[bubbleRowCursor % BUBBLE_ROWS.length];
   // (2026-07-18 3차 수정) 밴드(row)는 겹침 방지용이고, 좌/우는 순수하게 시각적 다양성을
   // 위해 번갈아 붙인다 - 밴드가 이미 겹침을 막아주므로 좌/우 조합은 아무렇게나 섞여도 안전.
-  // (2026-07-19 수정) 단, row-2(맨 위 밴드)는 '+나도 한마디' 버튼(top-right)과 같은 영역이라
-  // align-right가 걸리면 버튼에 텍스트가 가려짐 - row-2만 항상 왼쪽으로 고정.
-  const align = row === 'row-2' ? 'align-left' : (bubbleRowCursor % 2 === 0 ? 'align-left' : 'align-right');
+  // (2026-07-19 재수정) row-2가 '+나도 한마디' 버튼과 같은 밴드라 예전엔 row-2만 항상 왼쪽으로
+  // 고정했었는데, 좌/우 노출이 줄어드는 게 아쉽다는 피드백으로 되돌림 - 대신 index.html의
+  // .bubble.row-2.align-right{ right:92px } + max-width:70% 로 버튼과 안 겹치게 CSS에서 처리.
+  const align = bubbleRowCursor % 2 === 0 ? 'align-left' : 'align-right';
   bubbleRowCursor += 1;
   el.className = `bubble ${row} ${align}`;
   // (2026-07-18 버그 수정) 텍스트를 el에 직접 넣지 않고 내부 .bubble-text span에 넣는다 -

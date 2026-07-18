@@ -590,6 +590,12 @@
   .bubble.row-0{ animation-name:bubble-float-row0; }
   .bubble.row-1{ animation-name:bubble-float-row1; }
   .bubble.row-2{ animation-name:bubble-float-row2; }
+  /* (2026-07-19 수정) row-2는 '+나도 한마디' 버튼(top:2px;right:0, 폭 약 82px)과 같은
+     밴드라 좌/우 노출을 그대로 유지하되: (1) align-right 앵커를 버튼 폭+여백만큼 안쪽으로
+     당겨 텍스트 끝부분이 버튼 뒤로 들어가지 않게 하고, (2) max-width를 좁혀 좌측 정렬일 때도
+     긴 텍스트가 버튼 영역까지 뻗지 않게 한다. */
+  .bubble.row-2{ max-width:70%; }
+  .bubble.row-2.align-right{ right:92px; }
   @keyframes bubble-float-row0{
     0%{ opacity:0; bottom:-4px; }
     10%{ opacity:.62; bottom:2px; }
