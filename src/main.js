@@ -314,6 +314,7 @@ function renderScreen1(){
     }).join(' ');
   document.getElementById('s1-meme-copy').textContent = currentMemeCopy;
   document.getElementById('use-my-location-btn').style.display = isUsingDefaultRegion ? 'inline-flex' : 'none';
+  maybeRefreshBracketComments();
 }
 
 function renderCityBarList(){
@@ -416,6 +417,152 @@ function renderAll(){
   renderCityBarList();
   renderDongList();
   renderScreen3();
+}
+
+/* ============================================================
+   F5(2026-07-18): 체감 코멘트 버블
+   - 같은 체감온도 브래킷의 다른 유저 한마디가 화면1 상단에 2초 간격으로
+     스폰되어 스쳐 지나가듯 떴다 사라진다. 목업(디자인 단계)에서 확정된
+     타이밍(2초 간격·5.2초 생존·3레인·최대 불투명도 0.62) 그대로 구현.
+============================================================ */
+
+// 콜드스타트(그 브래킷에 실제 코멘트가 거의 없을 때) 대비 시드 - 실제 코멘트와 섞어서
+// 버블 존이 텅 비어 보이지 않게 한다. 실제 코멘트가 3개 이상이면 시드는 안 섞는다.
+const SEED_COMMENTS = {
+  tropicalNight: ['에어컨 없인 진짜 못 자요', '선풍기 두 대 풀가동', '창문 열어도 후끈'],
+  extreme: ['밖에 5분도 못 있겠어요', '아스팔트가 이글거려요', '그늘도 안 시원해요'],
+  veryHot: ['그늘 밑이 명당', '아이스아메리카노 3잔째', '땀이 안 멈춰요'],
+  hot: ['에어컨 앞을 못 떠나요', '반팔인데 땀은 왜', '얼음 다 녹았어요'],
+  warm: ['슬슬 더워지네요', '반팔 꺼내야겠어요', '그늘은 아직 괜찮아요'],
+  cool: ['오늘은 견딜만해요', '선선해서 좋네요', '창문 열어두기 딱이에요'],
+};
+const BUBBLE_LANES = ['lane-left', 'lane-center', 'lane-right'];
+let bubbleLaneCursor = 0;
+let bubbleSpawnTimer = null;
+let bubblePool = [];
+let lastFetchedCommentBracket = null;
+
+function spawnBubble(text){
+  const zone = document.getElementById('bubble-zone');
+  if(!zone) return;
+  const el = document.createElement('div');
+  const lane = BUBBLE_LANES[bubbleLaneCursor % BUBBLE_LANES.length];
+  bubbleLaneCursor += 1;
+  el.className = `bubble ${lane}`;
+  el.textContent = text;
+  zone.appendChild(el);
+  setTimeout(() => el.remove(), 5200);
+}
+
+function startBubbleLoop(){
+  clearTimeout(bubbleSpawnTimer);
+  if(bubblePool.length === 0) return;
+  let i = 0;
+  const tick = () => {
+    spawnBubble(bubblePool[i % bubblePool.length]);
+    i += 1;
+    bubbleSpawnTimer = setTimeout(tick, 2000);
+  };
+  tick();
+}
+
+async function loadBracketComments(bracket){
+  const seeds = SEED_COMMENTS[bracket] || [];
+  try{
+    const res = await fetch(`${API_BASE}/api/comments?bracket=${bracket}`);
+    if(!res.ok) throw new Error(`comments ${res.status}`);
+    const data = await res.json();
+    const real = Array.isArray(data.comments) ? data.comments : [];
+    // 실제 코멘트가 적으면 시드를 섞어 채운다 - 있는 만큼은 실제 코멘트를 우선 노출.
+    bubblePool = real.length >= 3 ? real : [...real, ...seeds];
+  }catch(err){
+    console.warn('체감 코멘트 조회 실패, 시드로 대체:', err);
+    bubblePool = seeds;
+  }
+  startBubbleLoop();
+}
+
+// renderScreen1()이 호출될 때마다(초기 mock → 실데이터 갱신 등) 브래킷이 바뀐 경우에만
+// 다시 불러온다 - 같은 브래킷이면 중복 요청하지 않는다.
+function maybeRefreshBracketComments(){
+  const bracket = getHeatBracketKey(currentFeelsLike);
+  if(bracket === lastFetchedCommentBracket) return;
+  lastFetchedCommentBracket = bracket;
+  loadBracketComments(bracket);
+}
+
+// 서버(api/_lib/moderation.js)가 최종 검수하지만, 입력 중 즉시 피드백을 주기 위한 최소
+// 클라이언트 사전 체크 - 신뢰 경계는 항상 서버 쪽이라 여기서 통과해도 서버에서 다시 막힐 수 있다.
+const CLIENT_BLOCKLIST = ['씨발', '시발', '병신', '개새끼', '좆', '지랄', '꺼져', '죽어'];
+function clientContainsBlockedWord(text){
+  const normalized = text.toLowerCase().replace(/\s+/g, '');
+  return CLIENT_BLOCKLIST.some(word => normalized.includes(word));
+}
+
+function openCommentSheet(){
+  trackClick({ log_name: 'comment_sheet_open' });
+  document.getElementById('comment-overlay').classList.add('show');
+}
+function closeCommentSheet(){
+  document.getElementById('comment-overlay').classList.remove('show');
+  const input = document.getElementById('comment-input');
+  input.value = '';
+  input.classList.remove('blocked');
+  document.getElementById('comment-filter-warning').classList.remove('show');
+  updateCommentCharCount();
+  updateCommentSubmitState();
+}
+function updateCommentCharCount(){
+  const len = document.getElementById('comment-input').value.length;
+  document.getElementById('comment-char-count').textContent = `${len}/20`;
+}
+function updateCommentSubmitState(){
+  const text = document.getElementById('comment-input').value.trim();
+  document.getElementById('comment-submit-btn').disabled = text.length === 0 || clientContainsBlockedWord(text);
+}
+function onCommentInput(){
+  updateCommentCharCount();
+  const input = document.getElementById('comment-input');
+  const blocked = clientContainsBlockedWord(input.value);
+  input.classList.toggle('blocked', blocked);
+  document.getElementById('comment-filter-warning').classList.toggle('show', blocked);
+  updateCommentSubmitState();
+}
+
+async function submitComment(){
+  const input = document.getElementById('comment-input');
+  const text = input.value.trim();
+  if(!text || clientContainsBlockedWord(text)) return;
+
+  trackClick({ log_name: 'comment_submit' });
+  await userKeyPromise;
+  if(!currentUserKey){
+    showToast('지금은 코멘트를 남길 수 없어요');
+    return;
+  }
+
+  const bracket = getHeatBracketKey(currentFeelsLike);
+  try{
+    const res = await withTimeout(fetch(`${API_BASE}/api/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anonKey: currentUserKey, bracket, text }),
+    }), 5000);
+    if(res.status === 429){
+      showToast('오늘은 이미 한마디 남기셨어요');
+      return;
+    }
+    if(!res.ok){
+      showToast('코멘트 등록에 실패했어요');
+      return;
+    }
+    spawnBubble(text);
+    closeCommentSheet();
+    showToast('코멘트가 등록됐어요');
+  }catch(err){
+    console.warn('코멘트 등록 실패:', err);
+    showToast('코멘트 등록에 실패했어요');
+  }
 }
 
 /* ============================================================
@@ -1127,7 +1274,7 @@ async function initUserKey(){
 renderAll();
 applyDeepLinkRoute();
 startLocationFlow();
-initUserKey();
+const userKeyPromise = initUserKey(); // submitComment()가 제출 직전 대기(await)할 수 있도록 프라미스로 보관
 initUpdateNote();
 initSafeArea();
 initHeatBattleBanner();
@@ -1149,4 +1296,8 @@ Object.assign(window, {
   toggleUpdateNoteExpand,
   dismissUpdateNote,
   openHeatBattle,
+  openCommentSheet,
+  closeCommentSheet,
+  onCommentInput,
+  submitComment,
 });

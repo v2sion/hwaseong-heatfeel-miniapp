@@ -528,6 +528,68 @@
   }
   .heatbattle-banner .to{ font-size:12px; font-weight:600; opacity:.9; }
 
+  /* F5(2026-07-18): 체감 코멘트 입력 CTA - 강제성 없는 보조 액션이라 primary-btn(꽉 찬
+     민트/오렌지 배경)보다 가벼운 점선 테두리로 톤을 낮춘다. */
+  .comment-cta{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; margin-top:14px; padding:14px 16px;
+    border:1.5px dashed var(--mint-400); border-radius:var(--radius-md);
+    background:var(--white); color:var(--mint-700);
+    font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .comment-input-wrap{ position:relative; margin-bottom:6px; }
+  .comment-input-wrap input{
+    width:100%; padding:14px 60px 14px 14px; border-radius:var(--radius-md);
+    border:1.5px solid var(--ink-100); font-family:var(--font); font-size:14px; color:var(--ink-900);
+    transition:border-color .15s ease;
+  }
+  .comment-input-wrap input:focus{ outline:none; border-color:var(--mint-400); }
+  .comment-input-wrap input.blocked{ border-color:var(--orange-500); }
+  .comment-char-count{
+    position:absolute; right:14px; top:50%; transform:translateY(-50%);
+    font-size:12px; color:var(--ink-300);
+  }
+  .comment-filter-warning{
+    display:none; align-items:center; gap:4px; margin:8px 0 0;
+    font-size:12.5px; font-weight:600; color:var(--orange-600);
+  }
+  .comment-filter-warning.show{ display:flex; }
+  #comment-overlay .consent-actions{ margin-top:18px; }
+
+  /* ============================================================
+     F5(2026-07-18): 체감 코멘트 버블 존
+     - 화면1 최상단(순위 뱃지 바로 아래)에 얇은 밴드로 배치 - 접속 직후 바로 눈에 띄게.
+     - 2초 간격 스폰, 생존시간 5.2초로 둬서 평균 2~3개가 동시에 떠 있음. 3레인(좌/중/우)으로
+       겹침 방지. 인터랙션에 시선이 쏠리지 않게 최대 불투명도를 0.62로 낮춰 스쳐 지나가듯
+       보이게 함(목업 승인 스펙 그대로).
+  ============================================================ */
+  .bubble-zone{ position:relative; height:80px; margin-top:14px; overflow:hidden; pointer-events:none; }
+  .bubble{
+    position:absolute; bottom:0;
+    display:inline-flex; align-items:center; white-space:nowrap; max-width:78%;
+    background:var(--white); border:1px solid var(--mint-100);
+    padding:7px 13px; border-radius:var(--radius-pill); box-shadow:var(--shadow-card);
+    font-size:12.5px; font-weight:600; color:var(--ink-700);
+    overflow:hidden; text-overflow:ellipsis;
+    animation:bubble-float 5.2s ease-out forwards;
+  }
+  .bubble.lane-left{ left:4%; }
+  .bubble.lane-center{ left:50%; animation-name:bubble-float-center; }
+  .bubble.lane-right{ right:4%; }
+  @keyframes bubble-float{
+    0%{ opacity:0; bottom:-4px; }
+    10%{ opacity:.62; bottom:6px; }
+    82%{ opacity:.62; bottom:58px; }
+    100%{ opacity:0; bottom:80px; }
+  }
+  @keyframes bubble-float-center{
+    0%{ opacity:0; bottom:-4px; transform:translateX(-50%); }
+    10%{ opacity:.62; bottom:6px; transform:translateX(-50%); }
+    82%{ opacity:.62; bottom:58px; transform:translateX(-50%); }
+    100%{ opacity:0; bottom:80px; transform:translateX(-50%); }
+  }
+  body.is-loading .bubble-zone{ display:none; }
+
   /* ================= 화면2: 순위 상세 ================= */
   #screen-2 .body-wrap{ padding:6px 20px calc(96px + var(--toss-safe-bottom)); }
 
@@ -1195,6 +1257,10 @@
           <span id="s1-rank-badge-text">강남구, 오늘 전국 256개 시군구 중 상위 7%</span>
         </span>
 
+        <!-- F5(2026-07-18): 체감 코멘트 버블 - 같은 체감온도대의 다른 유저 한마디가
+             2초 간격으로 스폰되어 스쳐 지나가듯 떴다 사라진다. 목업 승인된 스펙 그대로. -->
+        <div class="bubble-zone" id="bubble-zone"></div>
+
         <!-- 업데이트 알림 창구 - 정색한 공지가 아니라 "훑고 지나가는" 캐주얼한 톤.
              새 버전이 있을 때만 뜨고, 닫으면 그 버전은 Storage에 기록돼 다시 안 뜬다. -->
         <div class="update-note" id="update-note" style="display:none;">
@@ -1252,6 +1318,8 @@
 
         <div class="cta-wrap">
           <div class="helper">전국 시/군/구, <span id="s1-helper-region">강남구</span> 내 동 단위까지 비교해보세요</div>
+          <!-- F5(2026-07-18): 체감 코멘트 입력 진입점 -->
+          <button class="comment-cta" onclick="openCommentSheet()">💬 오늘 체감, 한마디 남기기</button>
           <!-- F8: 형제 앱 "무더위 배틀" 크로스 프로모션 배너. 더위배틀이 실제로 출시되기 전까진
                HEATBATTLE_LIVE=false로 숨겨둔다(main.js) - 딥링크 대상이 아직 존재하지 않기 때문. -->
           <button class="heatbattle-banner" id="heatbattle-banner" onclick="openHeatBattle()" style="display:none;">
@@ -1402,6 +1470,25 @@
         <p>불쾌지수는 기상청 공식(기온+습도 중심)으로 따로 계산돼요. 체감온도는 바람까지 반영하기 때문에, 같은 순간에도 두 수치가 조금 다르게 나올 수 있어요. 쾌적/보통/약간 높음/높음/매우 높음 5단계로 나타내요.</p>
       </div>
       <button class="primary-btn" onclick="closeBracketInfo()">확인했어요</button>
+    </div>
+  </div>
+
+  <!-- F5(2026-07-18): 체감 코멘트 입력 바텀시트 - consent-overlay/bracket-info-overlay와
+       동일한 구조·스타일을 그대로 재사용해 톤을 맞춘다. -->
+  <div class="consent-overlay" id="comment-overlay">
+    <div class="consent-sheet">
+      <div class="sheet-grabber"></div>
+      <h3>오늘 체감, 어때요?</h3>
+      <p>같은 체감온도대인 다른 분들에게 버블로 잠깐 보여드려요. 한마디만 편하게 남겨주세요.</p>
+      <div class="comment-input-wrap">
+        <input type="text" id="comment-input" maxlength="20" placeholder="오늘 체감을 한마디로 남겨보세요" oninput="onCommentInput()" />
+        <span class="comment-char-count" id="comment-char-count">0/20</span>
+      </div>
+      <p class="comment-filter-warning" id="comment-filter-warning">⚠️ 부적절한 표현이 포함돼 있어요</p>
+      <div class="consent-actions">
+        <button class="primary-btn" id="comment-submit-btn" onclick="submitComment()" disabled aria-label="한마디 남기기">남기기</button>
+        <button class="consent-skip" onclick="closeCommentSheet()" aria-label="닫기">닫기</button>
+      </div>
     </div>
   </div>
 </div>
