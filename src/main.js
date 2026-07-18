@@ -420,10 +420,17 @@ function renderAll(){
 
 /* ============================================================
    F5(2026-07-18): 체감 코멘트 버블
-   - 같은 체감온도 브래킷의 다른 유저 한마디가 화면1 상단에 2초 간격으로
-     스폰되어 스쳐 지나가듯 떴다 사라진다. 목업(디자인 단계)에서 확정된
-     타이밍(2초 간격·5.2초 생존·3레인·최대 불투명도 0.62) 그대로 구현.
+   - 같은 체감온도 브래킷의 다른 유저 한마디가 화면1 상단에 스폰되어
+     스쳐 지나가듯 떴다 사라진다. 3레인·최대 불투명도 0.62는 목업에서
+     확정된 스펙, 스폰 간격·생존시간은 아래 상수로 관리(4차 수정에서
+     "직접 남기는 활동감"을 위해 기존 대비 1.5배 빠르게 조정).
+   - index.html의 animation-duration(.bubble)과 이 파일의
+     BUBBLE_LIFESPAN_MS가 반드시 같은 값이어야 한다(CSS 애니메이션
+     종료 시점과 JS의 DOM 제거 시점을 맞추기 위함) - 값을 바꿀 땐 항상
+     두 곳을 함께 수정할 것.
 ============================================================ */
+const BUBBLE_SPAWN_INTERVAL_MS = 1333; // 기존 2000ms의 1.5배 빠르게(= 2000/1.5)
+const BUBBLE_LIFESPAN_MS = 3470;        // 기존 5200ms의 1.5배 빠르게(= 5200/1.5), index.html의 3.47s와 동일
 
 // 콜드스타트(그 브래킷에 실제 코멘트가 거의 없을 때) 대비 시드 - 실제 코멘트와 섞어서
 // 버블 존이 텅 비어 보이지 않게 한다. 실제 코멘트가 3개 이상이면 시드는 안 섞는다.
@@ -461,7 +468,7 @@ function spawnBubble(text){
   span.textContent = text;
   el.appendChild(span);
   zone.appendChild(el);
-  setTimeout(() => el.remove(), 5200);
+  setTimeout(() => el.remove(), BUBBLE_LIFESPAN_MS);
 }
 
 function startBubbleLoop(){
@@ -471,7 +478,7 @@ function startBubbleLoop(){
   const tick = () => {
     spawnBubble(bubblePool[i % bubblePool.length]);
     i += 1;
-    bubbleSpawnTimer = setTimeout(tick, 2000);
+    bubbleSpawnTimer = setTimeout(tick, BUBBLE_SPAWN_INTERVAL_MS);
   };
   tick();
 }
