@@ -284,6 +284,13 @@
     word-break:keep-all;
     overflow-wrap:break-word;
   }
+  /* (2026-07-18 추가) 탭하면 펼쳐진다는 affordance - 닫힘일 땐 아래를, 펼침일 땐 위를 가리키게 회전 */
+  .update-note-chevron{
+    flex-shrink:0;
+    color:var(--ink-300);
+    transition:transform .2s ease;
+  }
+  .update-note-chevron.expanded{ transform:rotate(180deg); }
   .update-note-close{
     position:absolute;
     top:6px; right:6px;
@@ -528,15 +535,6 @@
   }
   .heatbattle-banner .to{ font-size:12px; font-weight:600; opacity:.9; }
 
-  /* F5(2026-07-18): 체감 코멘트 입력 CTA - 강제성 없는 보조 액션이라 primary-btn(꽉 찬
-     민트/오렌지 배경)보다 가벼운 점선 테두리로 톤을 낮춘다. */
-  .comment-cta{
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    width:100%; margin-top:14px; padding:14px 16px;
-    border:1.5px dashed var(--mint-400); border-radius:var(--radius-md);
-    background:var(--white); color:var(--mint-700);
-    font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer;
-  }
   .comment-input-wrap{ position:relative; margin-bottom:6px; }
   .comment-input-wrap input{
     width:100%; padding:14px 60px 14px 14px; border-radius:var(--radius-md);
@@ -564,14 +562,23 @@
        보이게 함(목업 승인 스펙 그대로).
   ============================================================ */
   .bubble-zone{ position:relative; height:80px; margin-top:14px; overflow:hidden; pointer-events:none; }
+  /* (2026-07-18 버그 수정) "입력한 텍스트가 깨져 보인다"는 리포트 원인 - text-overflow:ellipsis를
+     .bubble(display:inline-flex)에 직접 걸어뒀는데, 이 속성은 플렉스 컨테이너에는 표준적으로
+     적용되지 않아(잘 알려진 CSS 제약) 20자에 가까운 긴 코멘트가 "..." 없이 컨테이너 경계에서
+     그냥 뚝 잘려 글자가 깨진 것처럼 보였다. 텍스트를 별도 block 자식(.bubble-text)으로 감싸고
+     거기에 ellipsis를 걸어야 신뢰성 있게 동작한다(min-width:0도 플렉스 자식 축소에 필수).
+     spawnBubble()도 textContent 대신 이 내부 span에 채우도록 함께 수정했다. */
   .bubble{
     position:absolute; bottom:0;
-    display:inline-flex; align-items:center; white-space:nowrap; max-width:78%;
+    display:flex; align-items:center; max-width:78%;
     background:var(--white); border:1px solid var(--mint-100);
     padding:7px 13px; border-radius:var(--radius-pill); box-shadow:var(--shadow-card);
     font-size:12.5px; font-weight:600; color:var(--ink-700);
-    overflow:hidden; text-overflow:ellipsis;
     animation:bubble-float 5.2s ease-out forwards;
+  }
+  .bubble-text{
+    display:block; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
   .bubble.lane-left{ left:4%; }
   .bubble.lane-center{ left:50%; animation-name:bubble-float-center; }
@@ -589,6 +596,18 @@
     100%{ opacity:0; bottom:80px; transform:translateX(-50%); }
   }
   body.is-loading .bubble-zone{ display:none; }
+
+  /* (2026-07-18) 코멘트 입력 진입점 - 전체 폭 CTA 버튼 대신 버블 존 우상단에 작게 얹어
+     화면 공간을 아꼈다. pointer-events:auto로 부모(.bubble-zone)의 none을 무시하고 클릭 가능. */
+  .bubble-add-btn{
+    position:absolute; top:2px; right:0; z-index:2; pointer-events:auto;
+    display:inline-flex; align-items:center; gap:3px;
+    padding:5px 10px; border:none; border-radius:var(--radius-pill);
+    background:var(--mint-050); color:var(--mint-700);
+    font-family:var(--font); font-size:11px; font-weight:700;
+    cursor:pointer;
+  }
+  .bubble-add-btn .plus{ font-size:13px; font-weight:800; line-height:1; }
 
   /* ================= 화면2: 순위 상세 ================= */
   #screen-2 .body-wrap{ padding:6px 20px calc(96px + var(--toss-safe-bottom)); }
@@ -1257,21 +1276,34 @@
           <span id="s1-rank-badge-text">강남구, 오늘 전국 256개 시군구 중 상위 7%</span>
         </span>
 
-        <!-- F5(2026-07-18): 체감 코멘트 버블 - 같은 체감온도대의 다른 유저 한마디가
-             2초 간격으로 스폰되어 스쳐 지나가듯 떴다 사라진다. 목업 승인된 스펙 그대로. -->
-        <div class="bubble-zone" id="bubble-zone"></div>
-
         <!-- 업데이트 알림 창구 - 정색한 공지가 아니라 "훑고 지나가는" 캐주얼한 톤.
-             새 버전이 있을 때만 뜨고, 닫으면 그 버전은 Storage에 기록돼 다시 안 뜬다. -->
+             새 버전이 있을 때만 뜨고, 닫으면 그 버전은 Storage에 기록돼 다시 안 뜬다.
+             (2026-07-18 이동) 코멘트 버블 영역 바로 위, 순위 뱃지 바로 아래로 재배치 - 첫
+             화면 정보 순서를 "순위 → 소식 → 다른 사람 반응"으로 정리. -->
         <div class="update-note" id="update-note" style="display:none;">
           <button class="update-note-close" onclick="dismissUpdateNote()" aria-label="닫기">×</button>
           <div class="update-note-content">
             <div class="update-note-body" onclick="toggleUpdateNoteExpand()">
               <span class="update-note-badge">NEW</span>
               <span class="update-note-summary" id="update-note-summary"></span>
+              <!-- (2026-07-18 추가) 탭하면 펼쳐진다는 걸 알려주는 화살표 - 상세 목록이 있다는
+                   게 "×" 버튼만으로는 눈에 안 띈다는 피드백. 펼침 상태에 따라 CSS로 회전. -->
+              <svg class="update-note-chevron" id="update-note-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
             <ul class="update-note-detail" id="update-note-detail" style="display:none;"></ul>
           </div>
+        </div>
+
+        <!-- F5(2026-07-18): 체감 코멘트 버블 - 같은 체감온도대의 다른 유저 한마디가
+             2초 간격으로 스폰되어 스쳐 지나가듯 떴다 사라진다. 목업 승인된 스펙 그대로.
+             (2026-07-18 수정) 별도 전체 폭 CTA 버튼 대신, 이 영역 자체에 작은 아이콘을 얹어
+             "여기가 그 코멘트를 남기는 곳"이라는 걸 직관적으로 알리고 화면 공간을 아꼈다. -->
+        <div class="bubble-zone" id="bubble-zone">
+          <button class="bubble-add-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">
+            <span class="plus">+</span> 나도 한마디
+          </button>
         </div>
 
         <!-- 위치 동의를 건너뛴 상태에서만 노출 - 마음이 바뀌면 언제든 다시 동의창을 띄울 수 있게 -->
@@ -1317,9 +1349,6 @@
         </div>
 
         <div class="cta-wrap">
-          <div class="helper">전국 시/군/구, <span id="s1-helper-region">강남구</span> 내 동 단위까지 비교해보세요</div>
-          <!-- F5(2026-07-18): 체감 코멘트 입력 진입점 -->
-          <button class="comment-cta" onclick="openCommentSheet()">💬 오늘 체감, 한마디 남기기</button>
           <!-- F8: 형제 앱 "무더위 배틀" 크로스 프로모션 배너. 더위배틀이 실제로 출시되기 전까진
                HEATBATTLE_LIVE=false로 숨겨둔다(main.js) - 딥링크 대상이 아직 존재하지 않기 때문. -->
           <button class="heatbattle-banner" id="heatbattle-banner" onclick="openHeatBattle()" style="display:none;">

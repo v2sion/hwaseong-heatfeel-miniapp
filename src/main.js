@@ -302,7 +302,6 @@ function renderScreen1(){
   const discomfortIndex = computeDiscomfortIndex(currentActualTemp, currentHumidity);
   document.getElementById('s1-discomfort-value').textContent = Math.round(discomfortIndex);
   document.getElementById('s1-discomfort-label').textContent = getDiscomfortLabel(discomfortIndex);
-  document.getElementById('s1-helper-region').textContent = currentRegionName;
   // (2026-07-17 수정) 템플릿 저자가 나눠둔 두 조각 사이에 무조건 <br/>를 넣었더니, 실제
   // 화면 폭에서 자연 줄바꿈까지 겹쳐 문장이 이상한 지점에서 끊겨 보이는 경우가 있었음 -
   // 공백으로 이어붙여 하나의 문장으로 두고, body 전역의 word-break:keep-all(단어 중간에서
@@ -449,7 +448,12 @@ function spawnBubble(text){
   const lane = BUBBLE_LANES[bubbleLaneCursor % BUBBLE_LANES.length];
   bubbleLaneCursor += 1;
   el.className = `bubble ${lane}`;
-  el.textContent = text;
+  // (2026-07-18 버그 수정) 텍스트를 el에 직접 넣지 않고 내부 .bubble-text span에 넣는다 -
+  // ellipsis 처리가 이 내부 block 요소에 걸려 있음(index.html .bubble-text 주석 참고).
+  const span = document.createElement('span');
+  span.className = 'bubble-text';
+  span.textContent = text;
+  el.appendChild(span);
   zone.appendChild(el);
   setTimeout(() => el.remove(), 5200);
 }
@@ -1110,7 +1114,10 @@ async function initUpdateNote(){
 
 function toggleUpdateNoteExpand(){
   const detailEl = document.getElementById('update-note-detail');
-  detailEl.style.display = detailEl.style.display === 'block' ? 'none' : 'block';
+  const expanded = detailEl.style.display !== 'block';
+  detailEl.style.display = expanded ? 'block' : 'none';
+  // (2026-07-18 추가) 펼침/닫힘 상태를 화살표 회전으로도 보여줘서 탭 가능하다는 걸 알림
+  document.getElementById('update-note-chevron').classList.toggle('expanded', expanded);
 }
 
 async function dismissUpdateNote(event){
