@@ -435,8 +435,11 @@ const SEED_COMMENTS = {
   warm: ['슬슬 더워지네요', '반팔 꺼내야겠어요', '그늘은 아직 괜찮아요'],
   cool: ['오늘은 견딜만해요', '선선해서 좋네요', '창문 열어두기 딱이에요'],
 };
-const BUBBLE_LANES = ['lane-left', 'lane-center', 'lane-right'];
-let bubbleLaneCursor = 0;
+// (2026-07-18 재수정) 가로 레인(좌/중/우) 대신 세로 밴드(위/중간/아래) - 같은 시점에 떠 있는
+// 버블끼리는 항상 다른 y좌표라 폭을 넉넉히(85%) 줘도 물리적으로 겹치지 않는다. index.html의
+// bubble-float-row0/1/2 keyframes와 1:1 대응.
+const BUBBLE_ROWS = ['row-0', 'row-1', 'row-2'];
+let bubbleRowCursor = 0;
 let bubbleSpawnTimer = null;
 let bubblePool = [];
 let lastFetchedCommentBracket = null;
@@ -445,9 +448,9 @@ function spawnBubble(text){
   const zone = document.getElementById('bubble-zone');
   if(!zone) return;
   const el = document.createElement('div');
-  const lane = BUBBLE_LANES[bubbleLaneCursor % BUBBLE_LANES.length];
-  bubbleLaneCursor += 1;
-  el.className = `bubble ${lane}`;
+  const row = BUBBLE_ROWS[bubbleRowCursor % BUBBLE_ROWS.length];
+  bubbleRowCursor += 1;
+  el.className = `bubble ${row}`;
   // (2026-07-18 버그 수정) 텍스트를 el에 직접 넣지 않고 내부 .bubble-text span에 넣는다 -
   // ellipsis 처리가 이 내부 block 요소에 걸려 있음(index.html .bubble-text 주석 참고).
   const span = document.createElement('span');
