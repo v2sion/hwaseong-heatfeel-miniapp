@@ -406,7 +406,7 @@ function renderScreen3(){
   document.getElementById('s3-rank-line').textContent =
     `전국 ${currentTotalRegions}개 시군구 중 ${currentCityRank}위`;
   document.getElementById('s3-hook-copy').innerHTML =
-    `${currentHookCopyLines.join(' ')}<span class="meme-line">${currentMemeCopy}</span>`;
+    `${currentHookCopyLines.join(' ')}<br/><span class="meme-line">${currentMemeCopy}</span>`;
   document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
   document.getElementById('s3-watermark').textContent = MOCK_CHALLENGE_HASHTAG;
 }
