@@ -405,26 +405,19 @@
     color:var(--ink-900);
   }
   .hook-card p .accent{ color:var(--ink-900); color:color-mix(in oklch, var(--heat-color) 65%, black); }
-  .hook-card .tag, .hook-card p, .hook-card-meme{ transition:opacity .3s ease; }
-  /* F3 밈 오마주(2026-07-18, 2026-07-18 가독성 수정): 처음엔 본문 밑에 한 줄 더 붙는
-     문장(p) 형태였는데, 본문 2줄 + 이 한 줄이 이어지는 프로즈로 읽혀 "체감 코멘트가
-     길어져서 읽기 힘들다"는 피드백을 받음 - 줄글이 아니라 작은 칩(뱃지)으로 바꿔서
-     "본문에 곁들이는 부가 요소"라는 게 한눈에 구분되게 함(읽어야 할 문장이 아니라
-     쓱 훑고 지나가는 장식에 가깝게). */
-  .hook-card-meme{
-    display:inline-flex;
-    align-items:center;
-    gap:4px;
-    min-width:0;
-    padding:4px 10px;
+  .hook-card .tag, .hook-card p, .hook-card-comment-btn{ transition:opacity .3s ease; }
+  /* (2026-07-19 재수정) 예전엔 밈 서브카피가 이 카드 안 작은 칩이었는데, 밈을 버블 풀로
+     옮기면서 이 자리엔 대신 코멘트 진입 버튼을 둔다 - "체감 코멘트를 읽고 → 내 소감도
+     남기기"를 카드 하나 안에서 자연스럽게 연결. */
+  .hook-card-comment-btn{
+    display:inline-flex; align-items:center; gap:4px;
+    margin-top:12px; padding:6px 12px; border:none;
     border-radius:var(--radius-pill);
-    background:var(--orange-050);
-    font-size:12px;
-    font-weight:700;
-    color:var(--orange-600);
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:var(--mint-050); color:var(--mint-700);
+    font-family:var(--font); font-size:12px; font-weight:700;
+    cursor:pointer;
   }
-  .hook-card-meme::before{ content:"🔥"; font-size:11px; }
+  .hook-card-comment-btn .plus{ font-size:14px; font-weight:800; line-height:1; }
   .hook-card::after{
     content:"";
     position:absolute; inset:0;
@@ -434,7 +427,7 @@
     transition:opacity .3s ease;
     pointer-events:none;
   }
-  body.is-loading .hook-card .tag, body.is-loading .hook-card p, body.is-loading .hook-card-meme{ opacity:0; }
+  body.is-loading .hook-card .tag, body.is-loading .hook-card p, body.is-loading .hook-card-comment-btn{ opacity:0; }
   body.is-loading .hook-card::after{ opacity:1; animation:skeleton-shimmer 1.4s ease-in-out infinite; }
 
   /* 위치 확인 중(is-locating)엔 배경색 없이 회색 스켈레톤(중립 쉬머) 그대로 두고, 그 위에
@@ -445,7 +438,7 @@
   body.is-locating .hook-card{ min-height:132px; }
   body.is-locating .hook-card .tag,
   body.is-locating .hook-card p,
-  body.is-locating .hook-card-meme{ display:none; }
+  body.is-locating .hook-card-comment-btn{ display:none; }
   body.is-locating .hook-card .hook-progress{
     display:flex;
     position:absolute;
@@ -564,13 +557,16 @@
        으로 겹침 방지. 인터랙션에 시선이 쏠리지 않게 최대 불투명도를 0.62로 낮춰 스쳐
        지나가듯 보이게 함.
   ============================================================ */
-  /* (2026-07-19, F5-2) 밈 리드 문구 + "+나도 한마디" 버튼을 고정된 한 줄(.bubble-lead)로
-     묶고, 그 아래에 순수하게 떠다니는 버블만 담는 .bubble-zone을 둔다 - 버튼이 움직이는
-     버블과 더 이상 같은 영역을 공유하지 않아 겹침 문제가 구조적으로 사라진다. */
-  .bubble-lead{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:14px; }
-  body.is-loading .bubble-lead{ display:none; }
-  body.is-locating .bubble-lead{ display:none; }
-  .bubble-zone{ position:relative; height:92px; margin-top:6px; overflow:hidden; pointer-events:none; }
+  .bubble-zone{ position:relative; height:92px; margin-top:14px; overflow:hidden; pointer-events:none; }
+  /* (2026-07-19 재수정) overflow:hidden의 사각 경계가 버블을 그대로 잘라내 "불투명한 채로
+     가려지는" 부자연스러운 느낌을 줬음(특히 맨 위 밴드가 존 상단 경계에 딱 맞닿아 있어서
+     완전 불투명 상태로 잘림) - mask-image로 존 위/아래 가장자리를 투명하게 그라데이션 처리해,
+     버블이 경계에 걸리기 전에 시각적으로 먼저 디졸브되도록 함(각 밴드 keyframe의 opacity
+     페이드와 별개로, 잘리는 순간 자체를 안 보이게 만드는 장치). */
+  .bubble-zone{
+    -webkit-mask-image:linear-gradient(to top, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+    mask-image:linear-gradient(to top, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+  }
   /* (2026-07-18 재수정) 레인 폭을 30~34%로 좁혀 겹침 자체는 없앴지만, 그 대가로 긴
      코멘트가 심하게 잘려("..." 처리) 공감이 안 된다는 피드백을 받음 - "겹침을 감수하더라도
      텍스트는 다 보이게" 요청에 따라 좌/중/우 가로 레인 대신 위/중간/아래 3개의 세로 밴드로
@@ -620,18 +616,6 @@
     100%{ opacity:0; bottom:92px; }
   }
   body.is-loading .bubble-zone{ display:none; }
-
-  /* (2026-07-18) 코멘트 입력 진입점. (2026-07-19, F5-2) 버블 위에 얹힌 절대 위치 아이콘이던
-     것을 .bubble-lead 안의 고정 flex 아이템으로 변경 - 더 이상 움직이는 버블과 겹치지 않는
-     안정적인 클릭 타겟. */
-  .bubble-add-btn{
-    flex:none; display:inline-flex; align-items:center; gap:3px;
-    padding:5px 10px; border:none; border-radius:var(--radius-pill);
-    background:var(--mint-050); color:var(--mint-700);
-    font-family:var(--font); font-size:11px; font-weight:700;
-    cursor:pointer;
-  }
-  .bubble-add-btn .plus{ font-size:13px; font-weight:800; line-height:1; }
 
   /* (2026-07-19, F5-3) 화면2 "우리 동네" 태그 옆에 붙는 초소형 코멘트 진입점 - 리스트 행
      레이아웃을 흔들지 않도록 아이콘 하나 크기의 원형 버튼으로만 둔다. */
@@ -1344,16 +1328,10 @@
 
         <!-- F5(2026-07-18): 체감 코멘트 버블 - 같은 체감온도대의 다른 유저 한마디가
              2초 간격으로 스폰되어 스쳐 지나가듯 떴다 사라진다. 목업 승인된 스펙 그대로.
-             (2026-07-19, F5-2 리디자인) 예전엔 hook-card 안의 밈 칩과 이 버블존이 따로
-             떨어져 있어 "코멘트성" UI가 두 군데로 나뉘어 보였다는 피드백 → 밈 서브카피(F3)를
-             이 영역의 고정 리드 문구로 옮기고, "+나도 한마디" 버튼도 움직이는 버블 위가 아니라
-             이 리드 행에 고정해 "다른 사람 반응을 읽고 → 나도 남기기" 흐름을 하나로 묶었다. -->
-        <div class="bubble-lead" id="bubble-lead">
-          <span class="hook-card-meme" id="s1-meme-copy">그냥 파라파라나 춰야겠다</span>
-          <button class="bubble-add-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">
-            <span class="plus">+</span> 나도 한마디
-          </button>
-        </div>
+             (2026-07-19, F5-2 1차 시도에서 밈을 별도 고정 칩으로 옮겼었으나, "밈도 다른
+             유저 코멘트처럼 버블 풀에 섞여 랜덤 노출돼야 한다"는 재요청으로 방향 수정 -
+             밈 서브카피(F3)는 main.js loadBracketComments()에서 bubblePool에 합류되어
+             이 존 안에서 다른 코멘트와 동일하게 랜덤으로 뜬다. 고정 리드 행은 제거. -->
         <div class="bubble-zone" id="bubble-zone"></div>
 
         <!-- 위치 동의를 건너뛴 상태에서만 노출 - 마음이 바뀌면 언제든 다시 동의창을 띄울 수 있게 -->
@@ -1378,6 +1356,11 @@
             강남구, 오늘은 <span class="accent">동남아 여행</span> 갈 필요 없는<br/>
             동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
           </p>
+          <!-- (2026-07-19 재수정) "+나도 한마디" 버튼을 버블존 위 고정 행에서 이 카드 안으로
+               이동 - 오늘 체감 코멘트를 읽은 바로 그 자리에서 내 소감도 남기도록 연결했다. -->
+          <button class="hook-card-comment-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">
+            <span class="plus">+</span> 오늘 체감 한마디 남기기
+          </button>
           <div class="hook-progress">
             <!-- 실제 TDS icon-sun-fill 벡터 (Claude Design 프로젝트의 Figma 원본 path 그대로 반영) -->
             <svg class="progress-icon" width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

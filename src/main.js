@@ -311,7 +311,9 @@ function renderScreen1(){
       // 첫 줄의 지역명만 강조
       return i===0 ? line.replace(currentRegionName, `<span class="accent">${currentRegionName}</span>`) : line;
     }).join(' ');
-  document.getElementById('s1-meme-copy').textContent = currentMemeCopy;
+  // (2026-07-19 재수정) 밈 서브카피는 더 이상 화면1의 고정 칩으로 표시하지 않는다 -
+  // loadBracketComments()에서 bubblePool에 합류시켜 다른 유저 코멘트와 같은 자리에서
+  // 랜덤으로 뜬다(currentMemeCopy 자체는 화면3 공유카드/공유 텍스트용으로 계속 사용).
   document.getElementById('use-my-location-btn').style.display = isUsingDefaultRegion ? 'inline-flex' : 'none';
   maybeRefreshBracketComments();
 }
@@ -546,16 +548,20 @@ function startBubbleLoop(){
 
 async function loadBracketComments(bracket){
   const seeds = SEED_COMMENTS[bracket] || [];
+  // (2026-07-19 재수정) 밈 서브카피(F3)를 별도 고정 칩으로 두지 않고, 다른 유저 코멘트와
+  // 같은 풀에 합류시켜 랜덤으로 함께 노출한다 - 시드(부트스트랩용, 실제 코멘트 쌓이면 밀려남)
+  // 와 달리 밈은 실제 코멘트 수와 무관하게 항상 풀에 포함(브랜드 톤 요소이므로).
+  const memeLines = MEME_COPY_TEMPLATES[bracket] || [];
   try{
     const res = await fetch(`${API_BASE}/api/comments?bracket=${bracket}`);
     if(!res.ok) throw new Error(`comments ${res.status}`);
     const data = await res.json();
     const real = Array.isArray(data.comments) ? data.comments : [];
     // 실제 코멘트가 적으면 시드를 섞어 채운다 - 있는 만큼은 실제 코멘트를 우선 노출.
-    bubblePool = real.length >= 3 ? real : [...real, ...seeds];
+    bubblePool = [...(real.length >= 3 ? real : [...real, ...seeds]), ...memeLines];
   }catch(err){
     console.warn('체감 코멘트 조회 실패, 시드로 대체:', err);
-    bubblePool = seeds;
+    bubblePool = [...seeds, ...memeLines];
   }
   startBubbleLoop();
 }
