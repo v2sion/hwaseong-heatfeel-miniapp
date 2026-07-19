@@ -156,11 +156,15 @@
   .screens.at-3{ transform:translateX(-66.6666%); }
 
   /* ---------- 공통 헤더 ---------- */
+  /* (2026-07-19 재수정) 화면2 진입 시 "우리 동네 체감온도 순위" 타이틀 위쪽에 빈 공간이
+     넓어 보인다는 피드백 - 앱인토스 네이티브 바(뒤로가기+로고, 셸이 그림) 아래에 이 커스텀
+     topbar가 또 한 번 여유 있게 띄워져 있어 이중으로 넓어 보였음. 고정 여백을 18px->8px로
+     줄임(safe-area는 노치 대응이라 그대로 유지). */
   .topbar{
     display:flex;
     align-items:center;
     gap:8px;
-    padding:calc(18px + var(--toss-safe-top)) 20px 4px;
+    padding:calc(8px + var(--toss-safe-top)) 20px 4px;
   }
   /* 실제 토스 앱에서는 네이티브 내비게이션 바가 뒤로가기를 제공하므로 기본적으로 숨긴다 -
      화면 안 커스텀 버튼까지 같이 보이면 앱인토스 비게임 출시 체크리스트("토스 내비게이션
