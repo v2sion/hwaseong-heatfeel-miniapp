@@ -626,7 +626,10 @@
   .rank-bubble-lead{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .rank-bubble-lead-text{ font-size:13px; font-weight:600; color:var(--ink-700); min-width:0; }
   .rank-bubble-lead .hook-card-comment-btn{ margin-top:0; flex:none; }
-  #bubble-zone-s2{ margin-top:6px; }
+  /* (2026-07-19 재수정) 리스트 위 공간이 너무 넓어 보인다는 피드백으로 92px -> 60px로
+     축소. row-0/row-1의 keyframe이 원래 -4~60px 범위라 이 높이에 그대로 들어맞는다(row-2는
+     main.js에서 이 존에는 스폰하지 않도록 제외) - 밴드 재조정 없이 안전하게 축소. */
+  #bubble-zone-s2{ height:60px; margin-top:6px; }
 
   .toggle-tabs{
     display:flex;

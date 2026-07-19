@@ -498,13 +498,22 @@ function getActiveBubbleZoneId(){
   return null;
 }
 
+// (2026-07-19 재수정) 화면2는 리스트 위 공간을 아끼려고 존 높이를 92px->60px로 줄였다.
+// row-0/row-1의 keyframe이 원래도 각각 -4~28px/28~60px 범위라 60px 존에 딱 맞게 잘리므로
+// (row-1 100% 지점이 정확히 60px) 겹침 방지용 밴드 폭을 다시 조정할 필요가 없다 - row-2만
+// 빼고 2개 밴드만 쓰면 그대로 안전하다.
+function getAvailableRowsForZone(zoneId){
+  return zoneId === 'bubble-zone-s2' ? BUBBLE_ROWS.slice(0, 2) : BUBBLE_ROWS;
+}
+
 function spawnBubble(text){
   const zoneId = getActiveBubbleZoneId();
   if(!zoneId) return;
   const zone = document.getElementById(zoneId);
   if(!zone) return;
   const el = document.createElement('div');
-  const row = BUBBLE_ROWS[bubbleRowCursor % BUBBLE_ROWS.length];
+  const availableRows = getAvailableRowsForZone(zoneId);
+  const row = availableRows[bubbleRowCursor % availableRows.length];
   // (2026-07-18 3차 수정) 밴드(row)는 겹침 방지용이고, 좌/우는 순수하게 시각적 다양성을
   // 위해 번갈아 붙인다 - 밴드가 이미 겹침을 막아주므로 좌/우 조합은 아무렇게나 섞여도 안전.
   // (2026-07-19, F5-2로 이 문제 자체가 해소됨) "+나도 한마디" 버튼이 더 이상 버블존 안에
