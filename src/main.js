@@ -330,7 +330,7 @@ function renderCityBarList(){
           <div class="bar-meta">
             <span class="bar-name-wrap">
               <span class="bar-name" title="${r.name}">${r.name}</span>
-              ${r.isMe ? `<span class="me-chip">${isUsingDefaultRegion ? '지금 가장 핫한 지역' : '우리 동네'}</span>` : ''}
+              ${r.isMe ? `<span class="me-chip">${isUsingDefaultRegion ? '지금 가장 핫한 지역' : '우리 동네'}</span>${isUsingDefaultRegion ? '' : '<button class="inline-comment-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">+</button>'}` : ''}
             </span>
             <span class="bar-temp">${fmtTemp(r.temp)}°</span>
           </div>
@@ -387,7 +387,7 @@ function renderDongList(){
           <div class="rank-chip">${d.rank}</div>
           <div>
             <div class="dong-name" title="${d.name}">${d.name}</div>
-            ${d.isMe ? `<span class="dong-badge">${isUsingDefaultRegion ? '지금 가장 핫한 동네' : '우리 동네'}</span>` : ''}
+            ${d.isMe ? `<span class="dong-badge-row"><span class="dong-badge">${isUsingDefaultRegion ? '지금 가장 핫한 동네' : '우리 동네'}</span>${isUsingDefaultRegion ? '' : '<button class="inline-comment-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">+</button>'}</span>` : ''}
           </div>
         </div>
         <div class="right">
@@ -487,16 +487,26 @@ let bubbleSpawnTimer = null;
 let bubblePool = [];
 let lastFetchedCommentBracket = null;
 
+// (2026-07-19, F5-3) 화면1/화면2가 각자 자기 존을 갖고 있고, spawnBubble()은 현재
+// currentScreenNum이 가리키는 화면의 존에만 그린다 - 화면3(공유카드)에서는 아무 데도
+// 안 그려 리소스 낭비 없음. currentScreenNum은 goToScreen()이 갱신.
+function getActiveBubbleZoneId(){
+  if(currentScreenNum === 1) return 'bubble-zone';
+  if(currentScreenNum === 2) return 'bubble-zone-s2';
+  return null;
+}
+
 function spawnBubble(text){
-  const zone = document.getElementById('bubble-zone');
+  const zoneId = getActiveBubbleZoneId();
+  if(!zoneId) return;
+  const zone = document.getElementById(zoneId);
   if(!zone) return;
   const el = document.createElement('div');
   const row = BUBBLE_ROWS[bubbleRowCursor % BUBBLE_ROWS.length];
   // (2026-07-18 3차 수정) 밴드(row)는 겹침 방지용이고, 좌/우는 순수하게 시각적 다양성을
   // 위해 번갈아 붙인다 - 밴드가 이미 겹침을 막아주므로 좌/우 조합은 아무렇게나 섞여도 안전.
-  // (2026-07-19 재수정) row-2가 '+나도 한마디' 버튼과 같은 밴드라 예전엔 row-2만 항상 왼쪽으로
-  // 고정했었는데, 좌/우 노출이 줄어드는 게 아쉽다는 피드백으로 되돌림 - 대신 index.html의
-  // .bubble.row-2.align-right{ right:92px } + max-width:70% 로 버튼과 안 겹치게 CSS에서 처리.
+  // (2026-07-19, F5-2로 이 문제 자체가 해소됨) "+나도 한마디" 버튼이 더 이상 버블존 안에
+  // 없어서(고정 리드 행으로 이동) row-2도 다른 밴드와 동일하게 좌우 자유롭게 섞인다.
   const align = bubbleRowCursor % 2 === 0 ? 'align-left' : 'align-right';
   bubbleRowCursor += 1;
   el.className = `bubble ${row} ${align}`;
