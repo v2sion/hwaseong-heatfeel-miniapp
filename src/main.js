@@ -332,7 +332,7 @@ function renderCityBarList(){
           <div class="bar-meta">
             <span class="bar-name-wrap">
               <span class="bar-name" title="${r.name}">${r.name}</span>
-              ${r.isMe ? `<span class="me-chip">${isUsingDefaultRegion ? '지금 가장 핫한 지역' : '우리 동네'}</span>${isUsingDefaultRegion ? '' : '<button class="inline-comment-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">+</button>'}` : ''}
+              ${r.isMe ? `<span class="me-chip">${isUsingDefaultRegion ? '지금 가장 핫한 지역' : '우리 동네'}</span>` : ''}
             </span>
             <span class="bar-temp">${fmtTemp(r.temp)}°</span>
           </div>
@@ -389,7 +389,7 @@ function renderDongList(){
           <div class="rank-chip">${d.rank}</div>
           <div>
             <div class="dong-name" title="${d.name}">${d.name}</div>
-            ${d.isMe ? `<span class="dong-badge-row"><span class="dong-badge">${isUsingDefaultRegion ? '지금 가장 핫한 동네' : '우리 동네'}</span>${isUsingDefaultRegion ? '' : '<button class="inline-comment-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">+</button>'}</span>` : ''}
+            ${d.isMe ? `<span class="dong-badge">${isUsingDefaultRegion ? '지금 가장 핫한 동네' : '우리 동네'}</span>` : ''}
           </div>
         </div>
         <div class="right">

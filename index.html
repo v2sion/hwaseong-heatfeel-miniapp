@@ -617,22 +617,16 @@
   }
   body.is-loading .bubble-zone{ display:none; }
 
-  /* (2026-07-19, F5-3) 화면2 "우리 동네" 태그 옆에 붙는 초소형 코멘트 진입점 - 리스트 행
-     레이아웃을 흔들지 않도록 아이콘 하나 크기의 원형 버튼으로만 둔다. */
-  .inline-comment-btn{
-    flex:none; display:inline-flex; align-items:center; justify-content:center;
-    width:18px; height:18px; margin-left:4px; padding:0;
-    border:none; border-radius:50%;
-    background:var(--mint-050); color:var(--mint-700);
-    font-size:12px; font-weight:800; line-height:1;
-    cursor:pointer;
-  }
-
   /* ================= 화면2: 순위 상세 ================= */
   #screen-2 .body-wrap{ padding:6px 20px calc(96px + var(--toss-safe-bottom)); }
-  /* (2026-07-19, F5-3) 화면2 상단에도 F5 버블 애니메이션 노출 - body-wrap 첫 자식이라
-     위쪽 여백은 body-wrap의 padding-top(6px)이 이미 담당하므로 margin-top은 0으로 둔다. */
-  #bubble-zone-s2{ margin-top:0; }
+  /* (2026-07-19 재수정, F5-3) 화면1 hook-card와 같은 원칙 - "읽는 자리 옆에 참여 버튼"을
+     화면2 상단에도 적용. 리스트 행 안 초소형 아이콘은 스크롤해야 보여 발견성이 낮았음 -
+     대신 버블존 바로 위에 캡션+버튼을 고정 배치해 화면 진입 즉시 보이게 한다. 버튼 스타일은
+     화면1 hook-card-comment-btn 재사용(신규 스타일 없음). */
+  .rank-bubble-lead{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .rank-bubble-lead-text{ font-size:13px; font-weight:600; color:var(--ink-700); min-width:0; }
+  .rank-bubble-lead .hook-card-comment-btn{ margin-top:0; flex:none; }
+  #bubble-zone-s2{ margin-top:6px; }
 
   .toggle-tabs{
     display:flex;
@@ -826,9 +820,6 @@
     text-overflow:ellipsis;
     max-width:38vw;
   }
-  /* (2026-07-19, F5-3) 배지 옆에 코멘트 버튼을 나란히 붙이기 위한 flex 래퍼 - 기존
-     .dong-badge의 margin-top을 이쪽으로 옮겼다. */
-  .dong-row .dong-badge-row{ display:flex; align-items:center; margin-top:4px; }
   .dong-row .dong-badge{
     display:block;
     font-size:11px;
@@ -837,6 +828,7 @@
     background:var(--mint-100);
     padding:2px 7px;
     border-radius:var(--radius-pill);
+    margin-top:4px;
     width:fit-content;
   }
   .dong-row .right{ text-align:right; flex-shrink:0; padding-left:10px; }
@@ -1401,9 +1393,16 @@
       </div>
 
       <div class="body-wrap">
-        <!-- F5-3(2026-07-19): 화면1과 같은 코멘트 풀을 재사용하는 앰비언트 버블 - 여기는
-             리드 문구(밈) 없이 순수하게 "다른 사람도 보고 있다"는 신호만 준다. 진입점은
-             이 존이 아니라 아래 본인 순위 행("우리 동네" 태그 옆)에 있다. -->
+        <!-- F5-3(2026-07-19): 화면1과 같은 코멘트 풀을 재사용하는 앰비언트 버블.
+             (2026-07-19 재수정) 진입점을 리스트 행 안 초소형 아이콘에서 이 캡션+버튼으로
+             변경 - 화면 진입 즉시 보이는 고정 위치라 발견성이 더 높다(화면1 hook-card와
+             동일 원칙). -->
+        <div class="rank-bubble-lead">
+          <span class="rank-bubble-lead-text">다른 분들도 오늘 체감을 남기고 있어요</span>
+          <button class="hook-card-comment-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">
+            <span class="plus">+</span> 나도 한마디
+          </button>
+        </div>
         <div class="bubble-zone" id="bubble-zone-s2"></div>
 
         <div class="toggle-tabs">
