@@ -415,13 +415,14 @@
     display:inline-flex;
     align-items:center;
     gap:4px;
-    margin-top:10px;
+    min-width:0;
     padding:4px 10px;
     border-radius:var(--radius-pill);
     background:var(--orange-050);
     font-size:12px;
     font-weight:700;
     color:var(--orange-600);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .hook-card-meme::before{ content:"🔥"; font-size:11px; }
   .hook-card::after{
@@ -563,7 +564,13 @@
        으로 겹침 방지. 인터랙션에 시선이 쏠리지 않게 최대 불투명도를 0.62로 낮춰 스쳐
        지나가듯 보이게 함.
   ============================================================ */
-  .bubble-zone{ position:relative; height:92px; margin-top:14px; overflow:hidden; pointer-events:none; }
+  /* (2026-07-19, F5-2) 밈 리드 문구 + "+나도 한마디" 버튼을 고정된 한 줄(.bubble-lead)로
+     묶고, 그 아래에 순수하게 떠다니는 버블만 담는 .bubble-zone을 둔다 - 버튼이 움직이는
+     버블과 더 이상 같은 영역을 공유하지 않아 겹침 문제가 구조적으로 사라진다. */
+  .bubble-lead{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:14px; }
+  body.is-loading .bubble-lead{ display:none; }
+  body.is-locating .bubble-lead{ display:none; }
+  .bubble-zone{ position:relative; height:92px; margin-top:6px; overflow:hidden; pointer-events:none; }
   /* (2026-07-18 재수정) 레인 폭을 30~34%로 좁혀 겹침 자체는 없앴지만, 그 대가로 긴
      코멘트가 심하게 잘려("..." 처리) 공감이 안 된다는 피드백을 받음 - "겹침을 감수하더라도
      텍스트는 다 보이게" 요청에 따라 좌/중/우 가로 레인 대신 위/중간/아래 3개의 세로 밴드로
@@ -590,12 +597,6 @@
   .bubble.row-0{ animation-name:bubble-float-row0; }
   .bubble.row-1{ animation-name:bubble-float-row1; }
   .bubble.row-2{ animation-name:bubble-float-row2; }
-  /* (2026-07-19 수정) row-2는 '+나도 한마디' 버튼(top:2px;right:0, 폭 약 82px)과 같은
-     밴드라 좌/우 노출을 그대로 유지하되: (1) align-right 앵커를 버튼 폭+여백만큼 안쪽으로
-     당겨 텍스트 끝부분이 버튼 뒤로 들어가지 않게 하고, (2) max-width를 좁혀 좌측 정렬일 때도
-     긴 텍스트가 버튼 영역까지 뻗지 않게 한다. */
-  .bubble.row-2{ max-width:70%; }
-  .bubble.row-2.align-right{ right:92px; }
   @keyframes bubble-float-row0{
     0%{ opacity:0; bottom:-4px; }
     10%{ opacity:.62; bottom:2px; }
@@ -616,11 +617,11 @@
   }
   body.is-loading .bubble-zone{ display:none; }
 
-  /* (2026-07-18) 코멘트 입력 진입점 - 전체 폭 CTA 버튼 대신 버블 존 우상단에 작게 얹어
-     화면 공간을 아꼈다. pointer-events:auto로 부모(.bubble-zone)의 none을 무시하고 클릭 가능. */
+  /* (2026-07-18) 코멘트 입력 진입점. (2026-07-19, F5-2) 버블 위에 얹힌 절대 위치 아이콘이던
+     것을 .bubble-lead 안의 고정 flex 아이템으로 변경 - 더 이상 움직이는 버블과 겹치지 않는
+     안정적인 클릭 타겟. */
   .bubble-add-btn{
-    position:absolute; top:2px; right:0; z-index:2; pointer-events:auto;
-    display:inline-flex; align-items:center; gap:3px;
+    flex:none; display:inline-flex; align-items:center; gap:3px;
     padding:5px 10px; border:none; border-radius:var(--radius-pill);
     background:var(--mint-050); color:var(--mint-700);
     font-family:var(--font); font-size:11px; font-weight:700;
@@ -1323,13 +1324,17 @@
 
         <!-- F5(2026-07-18): 체감 코멘트 버블 - 같은 체감온도대의 다른 유저 한마디가
              2초 간격으로 스폰되어 스쳐 지나가듯 떴다 사라진다. 목업 승인된 스펙 그대로.
-             (2026-07-18 수정) 별도 전체 폭 CTA 버튼 대신, 이 영역 자체에 작은 아이콘을 얹어
-             "여기가 그 코멘트를 남기는 곳"이라는 걸 직관적으로 알리고 화면 공간을 아꼈다. -->
-        <div class="bubble-zone" id="bubble-zone">
+             (2026-07-19, F5-2 리디자인) 예전엔 hook-card 안의 밈 칩과 이 버블존이 따로
+             떨어져 있어 "코멘트성" UI가 두 군데로 나뉘어 보였다는 피드백 → 밈 서브카피(F3)를
+             이 영역의 고정 리드 문구로 옮기고, "+나도 한마디" 버튼도 움직이는 버블 위가 아니라
+             이 리드 행에 고정해 "다른 사람 반응을 읽고 → 나도 남기기" 흐름을 하나로 묶었다. -->
+        <div class="bubble-lead" id="bubble-lead">
+          <span class="hook-card-meme" id="s1-meme-copy">그냥 파라파라나 춰야겠다</span>
           <button class="bubble-add-btn" onclick="openCommentSheet()" aria-label="오늘 체감 한마디 남기기">
             <span class="plus">+</span> 나도 한마디
           </button>
         </div>
+        <div class="bubble-zone" id="bubble-zone"></div>
 
         <!-- 위치 동의를 건너뛴 상태에서만 노출 - 마음이 바뀌면 언제든 다시 동의창을 띄울 수 있게 -->
         <button class="use-my-location-btn" id="use-my-location-btn" onclick="openLocationConsent()" style="display:none;">📍 내 동네 온도는 어때요?</button>
@@ -1353,7 +1358,6 @@
             강남구, 오늘은 <span class="accent">동남아 여행</span> 갈 필요 없는<br/>
             동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!
           </p>
-          <span class="hook-card-meme" id="s1-meme-copy">그냥 파라파라나 춰야겠다</span>
           <div class="hook-progress">
             <!-- 실제 TDS icon-sun-fill 벡터 (Claude Design 프로젝트의 Figma 원본 path 그대로 반영) -->
             <svg class="progress-icon" width="20" height="20" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
