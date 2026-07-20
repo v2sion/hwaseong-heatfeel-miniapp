@@ -413,13 +413,18 @@
   /* (2026-07-19 재수정) 예전엔 밈 서브카피가 이 카드 안 작은 칩이었는데, 밈을 버블 풀로
      옮기면서 이 자리엔 대신 코멘트 진입 버튼을 둔다 - "체감 코멘트를 읽고 → 내 소감도
      남기기"를 카드 하나 안에서 자연스럽게 연결. */
+  /* (2026-07-20 추가) 배경 채움만으로는 버튼보다 텍스트처럼 읽힌다는 피드백 - 목업(정적
+     네온 아웃라인 옵션, Mokeup/f5-comment-btn-neon-mockup.html)에서 검토 후 적용 확정.
+     얇은 민트 테두리 + 은은한 상시 글로우로 "클릭 가능한 요소"라는 인지를 높인다. */
   .hook-card-comment-btn{
     display:inline-flex; align-items:center; gap:4px;
-    margin-top:12px; padding:6px 12px; border:none;
+    margin-top:12px; padding:6px 12px;
+    border:1.5px solid var(--mint-400);
     border-radius:var(--radius-pill);
     background:var(--mint-050); color:var(--mint-700);
     font-family:var(--font); font-size:12px; font-weight:700;
     cursor:pointer;
+    box-shadow: 0 0 0 1px rgba(61,217,196,0.55), 0 0 8px 2px rgba(0,194,168,0.35);
   }
   .hook-card-comment-btn .plus{ font-size:14px; font-weight:800; line-height:1; }
   .hook-card::after{
