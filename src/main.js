@@ -604,6 +604,14 @@ async function setStoredCommentDate(value){
   }
 }
 
+// (2026-07-20 추가) 오늘 이미 한마디를 남겼으면 네온 글로우를 꺼서(테두리만 남기고) "지금
+// 눌러도 되는 버튼"으로 착각하지 않게 한다. body 클래스 하나로 화면1·화면2 버튼(둘 다
+// .hook-card-comment-btn 공용 클래스) 모두 한 번에 처리.
+async function updateCommentButtonNeonState(){
+  const lastDate = await getStoredCommentDate();
+  document.body.classList.toggle('commented-today', lastDate === todayDateKey());
+}
+
 async function openCommentSheet(){
   trackClick({ log_name: 'comment_sheet_open' });
   const lastDate = await getStoredCommentDate();
@@ -670,6 +678,7 @@ async function submitComment(){
       // 로컬 기록과 어긋난 경우(다른 기기 등) 서버가 최종 방어선 - 여기서도 날짜를
       // 맞춰 저장해 다음부터는 시트를 열기 전에 미리 걸러지게 한다.
       setStoredCommentDate(todayDateKey());
+      updateCommentButtonNeonState();
       showToast('오늘은 이미 한마디 남기셨어요');
       return;
     }
@@ -678,6 +687,7 @@ async function submitComment(){
       return;
     }
     setStoredCommentDate(todayDateKey());
+    updateCommentButtonNeonState();
     spawnBubble(text);
     closeCommentSheet();
     showToast('코멘트가 등록됐어요');
@@ -757,21 +767,28 @@ function findSimilarRegion(regions, mine){
   return best;
 }
 
-// 전체 랭킹에서 상위 3위 + (필요 시 생략 표시) + 내 지역 주변 구간만 뽑아 화면2 막대 리스트 형태로 변환
+// (2026-07-20 재수정) "상위 3개 + 내가 포함된 3개 = 항상 6개"로 고정해달라는 요청 - 예전엔
+// 내가 상위 4위 이내면 4개만 보이는 등 총 개수가 들쭉날쭉했다. top3은 항상 고정하고, 그 뒤
+// 3칸짜리 창을 "나를 가운데 두되 배열 경계·top3와 안 겹치게" 조정해 항상 정확히 6개를 채운다.
+// top3와 이어지면(창 시작이 3이면) 생략(...) 표시도 자연스럽게 생략된다.
 function buildCityRankingWindow(regions, meName){
   const toRow = (r) => ({ rank: r.rank, name: r.nameKo, temp: r.feelsLike, isMe: r.nameKo === meName });
+  const top3 = regions.slice(0, 3);
   const meIndex = regions.findIndex(r => r.nameKo === meName);
-  if(meIndex === -1) return regions.slice(0, 3).map(toRow);
+  if(meIndex === -1) return top3.map(toRow);
 
-  if(regions[meIndex].rank <= 4){
-    return regions.slice(0, Math.max(4, meIndex + 1)).map(toRow);
+  if(meIndex < 3){
+    // 이미 top3 안에 있으면 4~6위로 채워 항상 6개 유지
+    const rest = regions.slice(3, 6);
+    return [...top3, ...rest].map(toRow);
   }
 
-  const top3 = regions.slice(0, 3).map(toRow);
-  const windowStart = Math.max(3, meIndex - 1);
-  const windowEnd = Math.min(regions.length, meIndex + 2);
-  const nearby = regions.slice(windowStart, windowEnd).map(toRow);
-  return [...top3, { rank: '...', name: null, temp: null, isMe: false }, ...nearby];
+  let windowStart = Math.max(3, meIndex - 1);
+  if(windowStart + 3 > regions.length) windowStart = Math.max(3, regions.length - 3);
+  const nearby = regions.slice(windowStart, windowStart + 3);
+  const rows = [...top3, ...nearby].map(toRow);
+  if(windowStart > 3) rows.splice(3, 0, { rank: '...', name: null, temp: null, isMe: false });
+  return rows;
 }
 
 async function loadRanking(){
@@ -1408,6 +1425,7 @@ renderAll();
 applyDeepLinkRoute();
 startLocationFlow();
 const userKeyPromise = initUserKey(); // submitComment()가 제출 직전 대기(await)할 수 있도록 프라미스로 보관
+updateCommentButtonNeonState();
 initUpdateNote();
 initSafeArea();
 initHeatBattleBanner();

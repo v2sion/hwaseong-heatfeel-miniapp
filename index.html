@@ -426,6 +426,12 @@
     cursor:pointer;
     box-shadow: 0 0 0 1px rgba(61,217,196,0.55), 0 0 8px 2px rgba(0,194,168,0.35);
   }
+  /* (2026-07-20 추가) 오늘 이미 한마디를 남긴 상태면 "지금 눌러야 할 것 같은" 신호를 끈다 -
+     테두리는 남기고 글로우만 제거, 버튼 자체는 계속 눌러서 안내 토스트를 볼 수 있다. */
+  body.commented-today .hook-card-comment-btn{
+    border-color:var(--mint-100);
+    box-shadow:none;
+  }
   .hook-card-comment-btn .plus{ font-size:14px; font-weight:800; line-height:1; }
   .hook-card::after{
     content:"";
@@ -624,7 +630,24 @@
     82%{ opacity:.62; bottom:86px; }
     100%{ opacity:0; bottom:92px; }
   }
-  body.is-loading .bubble-zone{ display:none; }
+  /* (2026-07-20 추가) 예전엔 로딩 중 이 영역이 통째로 display:none이라 자리가 훅 꺼졌다가
+     로딩이 끝나면 갑자기 나타났음 - 온도 외 나머지 영역과 동일하게(#city-bar-list::before
+     등과 같은 공식) 회색 쉬머 placeholder를 보여줘 로딩 경험을 통일한다. */
+  .bubble-zone::before{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:var(--radius-md);
+    background-image:linear-gradient(90deg, rgba(139,149,161,0.12) 25%, rgba(139,149,161,0.24) 37%, rgba(139,149,161,0.12) 63%);
+    background-size:400% 100%;
+    opacity:0;
+    transition:opacity .3s ease;
+    pointer-events:none;
+  }
+  body.is-loading .bubble-zone::before{ opacity:1; animation:skeleton-shimmer 1.4s ease-in-out infinite; }
+  body.is-loading .bubble-zone .bubble{ display:none; }
+  /* 딥링크(/ranking)로 화면1을 거치지 않고 화면2로 바로 들어온 경우, 로딩 중엔 캡션+버튼도
+     아직 의미 없는 상태이므로 숨긴다(#bubble-zone-s2는 위 .bubble-zone 쉬머 규칙을 공유). */
+  body.is-loading .rank-bubble-lead{ opacity:0; }
 
   /* ================= 화면2: 순위 상세 ================= */
   #screen-2 .body-wrap{ padding:6px 20px calc(96px + var(--toss-safe-bottom)); }
