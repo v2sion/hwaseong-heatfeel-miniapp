@@ -7,10 +7,21 @@
 import { put, head } from '@vercel/blob';
 import DONG_BY_CITY from '../data/dong-all.json';
 
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1시간
-
 function cacheKey(cityCode) {
   return `dong-cache/${cityCode}.json`;
+}
+
+// (2026-07-25 재수정) 시 단위(/api/ranking)는 GitHub Actions가 매시 5분·35분에 전국을
+// 배치 수집(.github/workflows/collect-ranking.yml 참고)해서 항상 "정해진 30분 구간"의
+// 스냅샷을 보여준다. 동 단위는 원래 "마지막 조회로부터 60분" 롤링 TTL이라, 같은 화면2
+// 안에서도 두 패널의 기준 시각이 서로 다른 임의의 시점으로 어긋나 보였음(정합성 피드백).
+// API 호출량을 늘리지 않으면서(여전히 실제 요청 들어온 도시만 온디맨드) 시 단위와 같은
+// 30분 구간에 맞춰 갱신되도록, "마지막 갱신이 지금과 같은 30분 구간인지"로 캐시 유효성을
+// 판정하는 방식으로 바꾼다 - 구간이 바뀌는 순간(예: :29→:30) 바로 재수집을 트리거해
+// 다음 조회부터는 시 단위와 같은 구간의 스냅샷을 보여준다.
+function bucketOf(date) {
+  const half = date.getMinutes() < 30 ? 0 : 30;
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}-${half}`;
 }
 
 async function readCached(cityCode) {
@@ -19,8 +30,7 @@ async function readCached(cityCode) {
     const res = await fetch(`${meta.downloadUrl}?t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return null;
     const data = await res.json();
-    const age = Date.now() - new Date(data.updatedAt).getTime();
-    if (age > CACHE_TTL_MS) return null;
+    if (bucketOf(new Date(data.updatedAt)) !== bucketOf(new Date())) return null;
     return data;
   } catch (err) {
     return null;
