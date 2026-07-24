@@ -522,16 +522,31 @@ function spawnBubble(text){
   setTimeout(() => el.remove(), BUBBLE_LIFESPAN_MS);
 }
 
-// (2026-07-19 수정) 순서대로 도는 대신 무작위로 뽑는다 - 시드가 12개로 늘어난 지금은 순서
-// 자체는 큰 문제가 아니지만, 매번 똑같은 순번으로 등장하면 그것도 기계적으로 느껴질 수
-// 있어 방지. 바로 직전과 같은 문구가 연속으로 나오는 것만 피한다(풀이 2개 이하면 예외).
+// (2026-07-25 재수정) 실제 코멘트가 쌓이면서 "비슷한 게 자꾸 연달아 보인다"는 피드백 - 원인은
+// 균등 무작위 추출이었음(최신이든 오래된 것이든 뽑힐 확률이 완전히 동일해서, 고유 코멘트 수가
+// 적은 브래킷일수록 반복 체감이 두드러짐). 최신 실코멘트일수록 더 자주, 오래될수록 덜 뽑히도록
+// 가중치를 준다 - 완전히 밀어내진 않고(빈도만 낮춤) 시드/밈은 항상 동일한 기본 가중치 유지.
+// bubblePool은 이제 {text, weight} 객체 배열.
+function pickWeighted(pool){
+  const total = pool.reduce((sum, item) => sum + item.weight, 0);
+  let r = Math.random() * total;
+  for(const item of pool){
+    r -= item.weight;
+    if(r < 0) return item.text;
+  }
+  return pool[pool.length - 1].text;
+}
 let lastSpawnedComment = null;
 function pickNextComment(){
-  if(bubblePool.length <= 1) return bubblePool[0];
+  if(bubblePool.length <= 1) return bubblePool[0]?.text;
   let next;
+  let guard = 0;
+  // 직전과 같은 문구가 연속으로 나오는 것만 피한다 - 가중치 풀이라 순수 무작위보다 같은 값이
+  // 다시 뽑힐 확률이 높아졌으므로, 무한루프 방지용 안전장치(guard)를 둔다.
   do{
-    next = bubblePool[Math.floor(Math.random() * bubblePool.length)];
-  }while(next === lastSpawnedComment);
+    next = pickWeighted(bubblePool);
+    guard++;
+  }while(next === lastSpawnedComment && guard < 10);
   lastSpawnedComment = next;
   return next;
 }
@@ -546,6 +561,19 @@ function startBubbleLoop(){
   tick();
 }
 
+// (2026-07-25 추가) 서버가 최신순으로 내려주는 real[0]이 가장 최근 코멘트 - 인덱스가 뒤로
+// 갈수록(오래될수록) 가중치를 낮춘다. 최근 5개는 6~2, 그 이후는 전부 1(완전히 안 뽑히진
+// 않음, 빈도만 줄임). 시드/밈은 항상 기본 가중치 1 - 부트스트랩·브랜드 톤 요소라 굳이
+// "최신순"을 따질 대상이 아님.
+function buildWeightedCommentPool(realComments, seedComments, memeLines){
+  const pool = realComments.map((text, i) => ({ text, weight: Math.max(1, 6 - i) }));
+  if(realComments.length < 3){
+    seedComments.forEach(text => pool.push({ text, weight: 1 }));
+  }
+  memeLines.forEach(text => pool.push({ text, weight: 1 }));
+  return pool;
+}
+
 async function loadBracketComments(bracket){
   const seeds = SEED_COMMENTS[bracket] || [];
   // (2026-07-19 재수정) 밈 서브카피(F3)를 별도 고정 칩으로 두지 않고, 다른 유저 코멘트와
@@ -557,11 +585,10 @@ async function loadBracketComments(bracket){
     if(!res.ok) throw new Error(`comments ${res.status}`);
     const data = await res.json();
     const real = Array.isArray(data.comments) ? data.comments : [];
-    // 실제 코멘트가 적으면 시드를 섞어 채운다 - 있는 만큼은 실제 코멘트를 우선 노출.
-    bubblePool = [...(real.length >= 3 ? real : [...real, ...seeds]), ...memeLines];
+    bubblePool = buildWeightedCommentPool(real, seeds, memeLines);
   }catch(err){
     console.warn('체감 코멘트 조회 실패, 시드로 대체:', err);
-    bubblePool = [...seeds, ...memeLines];
+    bubblePool = buildWeightedCommentPool([], seeds, memeLines);
   }
   startBubbleLoop();
 }
