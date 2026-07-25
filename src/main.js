@@ -629,7 +629,10 @@ function maybeRefreshBracketComments(){
 
 // 서버(api/_lib/moderation.js)가 최종 검수하지만, 입력 중 즉시 피드백을 주기 위한 최소
 // 클라이언트 사전 체크 - 신뢰 경계는 항상 서버 쪽이라 여기서 통과해도 서버에서 다시 막힐 수 있다.
-const CLIENT_BLOCKLIST = ['씨발', '시발', '병신', '개새끼', '좆', '지랄', '꺼져', '죽어'];
+// (2026-07-27 추가) 서버(api/_lib/moderation.js)와 동일하게 "죽고싶"/"자살"/"살기싫" 추가 -
+// "더워 죽겠다" 같은 흔한 과장 표현은 그대로 두고, 자해/자살 의사를 나타내는 "고싶" 구문만
+// 걸러서 클라이언트 즉시 경고와 서버 최종 판정을 일치시킨다.
+const CLIENT_BLOCKLIST = ['씨발', '시발', '병신', '개새끼', '좆', '지랄', '꺼져', '죽어', '죽고싶', '자살', '살기싫'];
 function clientContainsBlockedWord(text){
   const normalized = text.toLowerCase().replace(/\s+/g, '');
   return CLIENT_BLOCKLIST.some(word => normalized.includes(word));
