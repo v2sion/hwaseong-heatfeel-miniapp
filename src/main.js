@@ -1018,27 +1018,24 @@ async function saveShareCardImage(){
     const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
     const fileName = `오늘체감온도_${currentRegionName}_${dateStr}.png`;
 
-    // (2026-07-26 조사) 실기기에서 "저장 확인창 → 아니요"를 눌러도 성공 토스트가 뜨는 버그
-    // 리포트 - saveBase64Data()는 공식 타입상 Promise<void>(성공 시 값 없이 resolve)라
-    // 거절 여부를 응답값으로 구분할 방법이 없다. 실제 구현(@apps-in-toss/native-modules)을
-    // 보면 토스 앱 버전이 특정 버전 미만이면 다이얼로그 없이 그냥 조용히 resolve하는
-    // 케이스도 확인됨 - 이런 경우들을 브릿지 쪽에서 구분 못 해 우리 쪽에서도 판단이
-    // 불가능하다. 일단 실제로 무엇이 resolve/reject되는지 콘솔에 남겨 다음 실기기 테스트에서
-    // 원인을 더 좁힐 수 있게 해둔다.
-    let bridgeSucceeded = true;
+    // (2026-07-27 재수정) saveBase64Data()는 공식 타입상 Promise<void>라 네이티브 저장
+    // 다이얼로그에서 사용자가 "아니요"를 선택해도 우리 코드 입장에선 정상 resolve로
+    // 보여 거절 여부를 구분할 방법이 없다(2026-07-26 조사). 그 네이티브 다이얼로그
+    // 자체는 OS/토스 앱 영역이라 코드로 없앨 수 없어서(사용자 확인), 대신 우리가
+    // 확실하지 않은 "저장되었습니다" 토스트를 임의로 띄우는 것 자체를 그만둔다 - 실제
+    // 저장 성공/거절 피드백은 토스 앱 자체 다이얼로그·시스템 토스트에 맡긴다. 브라우저
+    // 폴백(다운로드 링크) 경로는 결과가 항상 확정적이므로 토스트를 그대로 유지.
     try{
       const base64 = dataUrl.split(',')[1];
-      const bridgeResult = await withTimeout(saveBase64Data({ data: base64, fileName, mimeType: 'image/png' }), 5000);
-      console.info('saveBase64Data resolve 값(참고용, 문서상 void):', bridgeResult);
+      await withTimeout(saveBase64Data({ data: base64, fileName, mimeType: 'image/png' }), 5000);
     }catch(bridgeErr){
       console.warn('saveBase64Data 브릿지 실패(브라우저 환경 등), 다운로드 링크로 대체:', bridgeErr);
-      bridgeSucceeded = false;
       const link = document.createElement('a');
       link.download = fileName;
       link.href = dataUrl;
       link.click();
+      showToast('이미지가 저장되었습니다');
     }
-    if(bridgeSucceeded) showToast('이미지가 저장되었습니다');
   }catch(err){
     console.warn('이미지 저장 실패:', err);
     showToast('이미지 저장에 실패했습니다');
