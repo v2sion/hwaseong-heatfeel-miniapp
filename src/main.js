@@ -1018,17 +1018,27 @@ async function saveShareCardImage(){
     const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
     const fileName = `오늘체감온도_${currentRegionName}_${dateStr}.png`;
 
+    // (2026-07-26 조사) 실기기에서 "저장 확인창 → 아니요"를 눌러도 성공 토스트가 뜨는 버그
+    // 리포트 - saveBase64Data()는 공식 타입상 Promise<void>(성공 시 값 없이 resolve)라
+    // 거절 여부를 응답값으로 구분할 방법이 없다. 실제 구현(@apps-in-toss/native-modules)을
+    // 보면 토스 앱 버전이 특정 버전 미만이면 다이얼로그 없이 그냥 조용히 resolve하는
+    // 케이스도 확인됨 - 이런 경우들을 브릿지 쪽에서 구분 못 해 우리 쪽에서도 판단이
+    // 불가능하다. 일단 실제로 무엇이 resolve/reject되는지 콘솔에 남겨 다음 실기기 테스트에서
+    // 원인을 더 좁힐 수 있게 해둔다.
+    let bridgeSucceeded = true;
     try{
       const base64 = dataUrl.split(',')[1];
-      await withTimeout(saveBase64Data({ data: base64, fileName, mimeType: 'image/png' }), 5000);
+      const bridgeResult = await withTimeout(saveBase64Data({ data: base64, fileName, mimeType: 'image/png' }), 5000);
+      console.info('saveBase64Data resolve 값(참고용, 문서상 void):', bridgeResult);
     }catch(bridgeErr){
       console.warn('saveBase64Data 브릿지 실패(브라우저 환경 등), 다운로드 링크로 대체:', bridgeErr);
+      bridgeSucceeded = false;
       const link = document.createElement('a');
       link.download = fileName;
       link.href = dataUrl;
       link.click();
     }
-    showToast('이미지가 저장되었습니다');
+    if(bridgeSucceeded) showToast('이미지가 저장되었습니다');
   }catch(err){
     console.warn('이미지 저장 실패:', err);
     showToast('이미지 저장에 실패했습니다');
@@ -1240,6 +1250,18 @@ async function setStoredConsent(value){
      그 버전을 Storage에 기록해두고, 그 버전 이하로는 다시 안 뜬다 - 최초 고지 동의 패턴과 동일.
 ============================================================ */
 const CHANGELOG = [
+  {
+    // (2026-07-26) 직전 배치(2026-07-18)는 2026-07-20에 실제 배포 확인됨(앱인토스/
+    // 06_배포확인이력.md 참고) - 새 배포 확인 사이클이라 새 버전 항목으로 시작.
+    version: '2026-07-26',
+    summary: '순위 화면에서도 다른 분들 체감을 만나보세요',
+    detail: [
+      '전국/동네 순위 화면 상단에도 다른 분들 체감 코멘트가 떠올라요',
+      '오늘의 체감 코멘트 카드에서 바로 내 소감을 남길 수 있어요',
+      '공유 이미지에 지금 체감이 얼마나 힘든지 더 잘 보이게 했어요',
+      '체감 한마디 등록 제한이 한국 시간 자정 기준으로 정확히 초기화돼요',
+    ],
+  },
   {
     // (2026-07-18) 직전 배치(2026-07-17)는 사용자가 .ait 등록 후 실기기 테스트에
     // 들어간 시점 - 새 업데이트 사이클을 시작하는 시점엔 이전 배치가 정상 배포됐다고
