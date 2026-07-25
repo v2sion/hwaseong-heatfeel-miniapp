@@ -15,9 +15,15 @@ function sanitizeKeyPart(str) {
   return String(str || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
 }
 
+// (2026-07-26 수정) 1일 1회 제한이 "한국 시간(KST, UTC+9) 자정 초기화"여야 하는데,
+// Vercel 서버리스 함수는 기본적으로 UTC로 실행돼(TZ 환경변수 미설정) new Date()의 로컬
+// getFullYear/Month/Date가 사실상 UTC 날짜를 반환하고 있었음 - 실제로는 KST 09시에
+// 초기화되는 버그였다(KST 00~09시 사이엔 여전히 "어제 UTC 날짜"로 계산됨). UTC 시각에
+// 9시간을 더한 뒤 UTC 접근자로 읽는 방식으로 서버 타임존과 무관하게 항상 KST 자정
+// 기준으로 계산한다.
 function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCFullYear()}${String(kst.getUTCMonth() + 1).padStart(2, '0')}${String(kst.getUTCDate()).padStart(2, '0')}`;
 }
 
 async function handleGet(req, res) {

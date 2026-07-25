@@ -243,8 +243,14 @@ function pickTemplate(list, seedKey){
 // 의도) - 날짜(하루 단위)를 시드에 추가하면 "하루 안에서는 고정, 날이 바뀌면 달라질 수 있음"이
 // 둘 다 성립한다. 온도 자체가 바뀌면 원래도 문구가 바뀌므로, 실제 체감은 "온도가 같아도 날이
 // 다르면 다른 문구가 나올 수 있다"는 정도로 자연스럽게 다양해진다.
+// (2026-07-26 수정) F5 1일1회 코멘트 제한이 "한국 시간(KST, UTC+9) 자정 초기화"여야 하는데,
+// 기기 로컬 타임존에 의존하는 getFullYear/Month/Date를 그대로 쓰고 있었음 - 사용자 대부분은
+// 폰이 KST라 문제가 잘 안 보였겠지만, 서버(api/comments.js todayStr())가 UTC라 실제로는
+// KST 09시에 초기화되는 버그가 있었고(서버 쪽에서 별도 수정), 클라이언트도 기기 타임존과
+// 무관하게 항상 KST 기준으로 계산하도록 서버와 동일한 방식(UTC+9시간 후 UTC 접근자)으로 통일.
 function todayDateKey(date = new Date()){
-  return `${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`;
+  const kst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCFullYear()}-${kst.getUTCMonth()+1}-${kst.getUTCDate()}`;
 }
 
 function getHookCopyLines(regionName, feelsLikeTemp){
