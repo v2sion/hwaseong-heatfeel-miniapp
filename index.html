@@ -952,20 +952,39 @@
     border-radius:var(--radius-pill);
     vertical-align:middle;
   }
-  .share-card .big-temp{
-    margin-top:8px;
-    font-size:clamp(52px, 19vw, 88px);
-    font-weight:800;
+  /* (2026-07-25 재설계) 온도 숫자만 단독으로 크게 노출되던 .big-temp/.rank-line을,
+     "실제로 얼마나 힘든지"가 전달되도록 이모지+헤드라인+비교 칩 구성으로 교체
+     (목업 Mokeup/f4-share-card-emphasis-mockup.html Option C 검토 후 확정).
+     375px 기준 실측(이모지56/라벨36/숫자48px)을 vw 비율로 환산해 반응형 처리. */
+  .share-card .pain-emoji-c{
+    margin-top:16px;
+    font-size:clamp(44px, 14.9vw, 64px);
     line-height:1;
-    letter-spacing:-3px;
     position:relative;
+  }
+  .share-card .title-c{
+    margin-top:12px;
+    display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+    position:relative;
+  }
+  .share-card .title-c .label{
+    font-size:clamp(30px, 9.6vw, 42px);
+    font-weight:800;
+    letter-spacing:-0.5px;
+  }
+  .share-card .title-c .num{
+    font-size:clamp(40px, 12.8vw, 56px);
+    font-weight:800;
+    letter-spacing:-2px;
     font-variant-numeric:tabular-nums;
   }
-  .share-card .rank-line{
-    margin-top:10px;
-    font-size:14px;
-    font-weight:700;
-    opacity:.92;
+  .share-card .chip-c{
+    margin-top:12px;
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:700;
+    background:rgba(255,255,255,0.2);
+    padding:7px 13px;
+    border-radius:var(--radius-pill);
     position:relative;
   }
   .share-card .hook{
@@ -1278,7 +1297,7 @@
   }
   body.is-loading #s3-region-name .name-text,
   body.is-loading #s3-temp,
-  body.is-loading #s3-rank-line,
+  body.is-loading #s3-compare-chip,
   body.is-loading #s3-hook-copy,
   body.is-loading #s3-rank-badge,
   body.is-loading #s3-date{
@@ -1490,8 +1509,13 @@
             <span class="name-text" id="s3-region-name">강남구</span>
             <span class="badge" id="s3-rank-badge">상위 7%</span>
           </div>
-          <div class="big-temp"><span id="s3-temp">34</span>°</div>
-          <div class="rank-line" id="s3-rank-line">전국 256개 시군구 중 16위</div>
+          <!-- (2026-07-25 재설계) 온도 숫자만 크게 노출되던 것에서, "내가 지금 얼마나 힘든지"가
+               전달되도록 재구성 - 목업(Mokeup/f4-share-card-emphasis-mockup.html Option C)
+               검토 후 확정. 불쾌지수 단계 이모지 + "실제 체감 N°" 헤드라인 + 가장 쾌적한
+               지역 대비 델타·불쾌지수 비교 칩. -->
+          <div class="pain-emoji-c" id="s3-emoji">😵‍💫</div>
+          <div class="title-c"><span class="label">실제 체감</span><span class="num" id="s3-temp">34</span>°</div>
+          <div class="chip-c" id="s3-compare-chip">가장 쾌적한 곳보다 +7.7° · 불쾌지수 82</div>
           <div class="hook" id="s3-hook-copy">
             강남구, 오늘은 동남아 여행 갈 필요 없는 동남아 그 자체.<br/>
             러닝하면 찜질방에서 뛰는 날씨!

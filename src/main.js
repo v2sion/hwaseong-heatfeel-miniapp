@@ -105,6 +105,7 @@ let currentFeelsLike = MOCK_FEELS_LIKE_TEMP;
 let currentActualTemp = MOCK_ACTUAL_TEMP;
 let currentHumidity = MOCK_HUMIDITY;
 let currentSimilarRegion = null; // { name, temp, diff } - 전국에서 체감온도가 가장 비슷한 지역 (F11)
+let currentCoolestRegion = null; // { name, temp } - 전국에서 체감온도가 가장 낮은(쾌적한) 지역 - 화면3 공유카드 델타 비교용 (2026-07-25)
 let currentUpdatedLabel = MOCK_UPDATED_AT_LABEL;
 
 // (2026-07-17 신규) 화면1 실시간 조회 / 화면2 시군구 배치수집 / 화면2 동 단위 온디맨드 캐싱이
@@ -184,6 +185,14 @@ function getDiscomfortLabel(di){
   if(di < 80) return '약간 높음';
   if(di < 83) return '높음';
   return '매우 높음';
+}
+// (2026-07-25 추가) 화면3 공유카드 헤드라인 이모지 - 불쾌지수 5단계와 동일한 경계로 매핑.
+function getDiscomfortEmoji(di){
+  if(di < 68) return '😌';
+  if(di < 75) return '🙂';
+  if(di < 80) return '😓';
+  if(di < 83) return '🥵';
+  return '😵‍💫';
 }
 
 // 해당 온도의 CSS 변수 참조 문자열(예: "var(--heat-hot)")을 반환 - 인라인 style에 바로 쓸 수 있음
@@ -405,8 +414,18 @@ function renderScreen3(){
   document.getElementById('s3-region-name').textContent = currentRegionName;
   document.getElementById('s3-rank-badge').textContent = `상위 ${currentRankPercent}%`;
   document.getElementById('s3-temp').textContent = fmtTemp(currentFeelsLike);
-  document.getElementById('s3-rank-line').textContent =
-    `전국 ${currentTotalRegions}개 시군구 중 ${currentCityRank}위`;
+  // (2026-07-25 재수정) "숫자가 크게 → 얼마나 힘든지 안 와닿는다"는 피드백으로 헤드라인을
+  // 재구성 - 불쾌지수 단계별 이모지 + "가장 쾌적한 곳보다 +N°·불쾌지수 NN" 비교 칩을 추가.
+  // 목업(Mokeup/f4-share-card-emphasis-mockup.html Option C) 검토 후 확정된 구성.
+  const discomfortIndex = computeDiscomfortIndex(currentActualTemp, currentHumidity);
+  document.getElementById('s3-emoji').textContent = getDiscomfortEmoji(discomfortIndex);
+  const compareChip = document.getElementById('s3-compare-chip');
+  if(currentCoolestRegion && currentCoolestRegion.name !== currentRegionName){
+    const delta = Math.max(0, Math.round((currentFeelsLike - currentCoolestRegion.temp) * 10) / 10);
+    compareChip.textContent = `가장 쾌적한 곳보다 +${fmtTemp(delta)}° · 불쾌지수 ${Math.round(discomfortIndex)}`;
+  }else{
+    compareChip.textContent = `불쾌지수 ${Math.round(discomfortIndex)} · ${getDiscomfortLabel(discomfortIndex)}`;
+  }
   document.getElementById('s3-hook-copy').innerHTML =
     `${currentHookCopyLines.join(' ')}<br/><span class="meme-line">${currentMemeCopy}</span>`;
   document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
@@ -840,6 +859,12 @@ async function loadRanking(){
     const nationwideTemps = data.regions.map(r => r.feelsLike).filter(t => typeof t === 'number');
     if(nationwideTemps.length > 0){
       currentNationwideAverageTemp = Math.round((nationwideTemps.reduce((sum, t) => sum + t, 0) / nationwideTemps.length) * 10) / 10;
+    }
+    // (2026-07-25) data.regions는 체감온도 내림차순 정렬(collect.js) - 마지막 원소가 전국에서
+    // 가장 쾌적한(체감온도가 가장 낮은) 지역. 화면3 공유카드의 "가장 쾌적한 곳보다 +N°" 비교용.
+    const coolest = data.regions[data.regions.length - 1];
+    if(coolest && typeof coolest.feelsLike === 'number'){
+      currentCoolestRegion = { name: coolest.nameKo, temp: coolest.feelsLike };
     }
     rankingLoadFailed = false;
 
