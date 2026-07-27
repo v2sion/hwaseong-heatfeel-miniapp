@@ -1,29 +1,19 @@
-// POST/GET /api/collect?chunk=0&total=5
-// 전국 시군구(250개) 체감온도를 OpenWeatherMap에서 나눠 수집해 Vercel Blob에 캐싱한다.
-// GitHub Actions가 30분마다 chunk=0..total-1을 순서대로, 각 호출 사이 딜레이를 두고 호출한다.
-// (분당 60회 제한 때문에 한 번의 요청으로 250개를 다 모으지 않고, 조각으로 나눠 여러 번 호출하는 구조)
+// POST /api/collect?chunk=0&total=5
+// 전국 시군구(256개) 체감온도 중 한 조각(chunk)만 OpenWeatherMap에서 수집해 결과를 그대로
+// 응답 본문(JSON)으로 돌려준다. Vercel Blob에는 전혀 쓰지 않는다 - GitHub Actions가 청크
+// 5개의 응답을 직접 누적했다가 /api/collect-finalize에 한 번만 넘겨서 최종 저장한다.
+// (분당 60회 제한 때문에 한 번의 요청으로 256개를 다 모으지 않고, 조각으로 나눠 여러 번 호출하는 구조)
 // CRON_SECRET으로 보호되어 있어 외부에서 무단으로 대량 호출할 수 없다.
-
-// (2026-07-26 재수정) 예전엔 청크마다 공유 파일(ranking/partial.json)을 읽고-고쳐서-다시
-// 쓰는 구조였는데, 실기기 QA로 실측한 결과 청크 3->4로 넘어가며 256개 중 104개가 통째로
-// 유실되는 사례를 실제로 확인함(청크4가 partial.json을 읽었을 때 청크3가 방금 쓴 값이 아직
-// 안 보이는 Vercel Blob read-after-write 지연이 원인 - comments.js 헤더 주석에 "랭킹
-// 수집기에서 실제로 겪었던 문제"로 이미 기록돼 있던 바로 그 이슈가 원인 코드는 안 고쳐진 채
-// 남아있었음). comments.js와 동일한 append-only 패턴으로 전환 - 청크마다 자기 몫만 독립된
-// 파일에 쓰고 다른 청크의 파일을 읽어서 합치지 않으므로(각자 쓰기만 함) 읽기 경쟁 자체가
-// 없다. 마지막 청크만 그동안 쌓인 모든 청크 파일을 모아 최종본을 만든다 - 이때도 자기 몫은
-// 방금 쓴 blob을 다시 읽지 않고 메모리에 있는 값을 그대로 쓰고, 다른 청크(최소 65초 전에
-// 쓰여 전파 지연 걱정이 없음)만 다시 읽는다.
-
-import { put, list } from '@vercel/blob';
+//
+// (2026-07-26 3차 개편 배경) 이전엔 청크마다 Vercel Blob에 partial 파일을 썼다(청크마다
+// put() 1회 + 마지막 청크가 list()+put()으로 합치는 구조, 라운드당 Advanced Operations
+// 6~7회). 그 이전엔 한 파일을 여러 청크가 읽고-고쳐서-다시 쓰다가 Blob의 read-after-write
+// 전파 지연으로 데이터가 통째로 유실되는 버그도 겪었다. 배치 주기를 30분으로 줄이며 Vercel
+// Blob 무료 한도(Advanced Operations 월 2,000회)의 75%를 소진했다는 알림을 받은 게 발단 -
+// 한도를 넘기면 Blob 저장소 자체가 최대 30일간 막혀 랭킹·동단위·공유링크 기능이 전부 죽는다.
+// 청크 결과를 Blob이 아니라 이 함수를 호출하는 GitHub Actions 러너의 메모리에서 누적하도록
+// 바꿔, 라운드당 Blob 쓰기를 최종 1회로 줄인다(collect-finalize.js 참고).
 import REGIONS from '../data/sigungu.json';
-
-const LATEST_KEY = 'ranking/latest.json';
-const CHUNK_PREFIX = 'ranking/partial-chunk/';
-
-function chunkKey(chunk) {
-  return `${CHUNK_PREFIX}${chunk}.json`;
-}
 
 export default async function handler(req, res) {
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -42,7 +32,7 @@ export default async function handler(req, res) {
   const slice = REGIONS.slice(start, start + chunkSize);
 
   if (slice.length === 0) {
-    return res.status(200).json({ chunk, total, skipped: true, reason: 'empty slice' });
+    return res.status(200).json({ chunk, total, results: [] });
   }
 
   const settled = await Promise.allSettled(
@@ -62,85 +52,9 @@ export default async function handler(req, res) {
     })
   );
 
-  const results = {};
-  let succeeded = 0;
-  for (const result of settled) {
-    if (result.status === 'fulfilled' && typeof result.value.feelsLike === 'number') {
-      results[result.value.code] = result.value;
-      succeeded += 1;
-    }
-  }
+  const results = settled
+    .filter((r) => r.status === 'fulfilled' && typeof r.value.feelsLike === 'number')
+    .map((r) => r.value);
 
-  // 이번 청크 몫을 독립된 파일에 저장 - 다른 청크의 파일은 절대 읽지 않는다(쓰기 전용).
-  await put(chunkKey(chunk), JSON.stringify({ chunk, results }), {
-    access: 'public',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: 'application/json',
-    cacheControlMaxAge: 0,
-  });
-
-  const isLastChunk = chunk >= total - 1;
-
-  if (!isLastChunk) {
-    return res.status(200).json({
-      chunk,
-      total,
-      fetchedThisChunk: succeeded,
-      done: false,
-    });
-  }
-
-  // 마지막 청크: 자기 몫(results)은 방금 계산한 메모리 값을 그대로 쓰고, 나머지 청크
-  // 파일만 목록 조회 + 조회해서 합친다.
-  const merged = { ...results };
-  try {
-    const { blobs } = await list({ prefix: CHUNK_PREFIX, limit: total + 5 });
-    await Promise.all(
-      blobs
-        .filter((b) => b.pathname !== chunkKey(chunk))
-        .map(async (b) => {
-          try {
-            const r = await fetch(`${b.url}?t=${Date.now()}`, { cache: 'no-store' });
-            if (!r.ok) return;
-            const part = await r.json();
-            Object.assign(merged, part.results);
-          } catch (err) {
-            // 청크 파일 하나를 못 읽어도 나머지로 계속 진행 - 완전 실패보다 부분 결과가 낫다
-          }
-        })
-    );
-  } catch (err) {
-    // list() 자체가 실패해도 최소한 마지막 청크 몫으로는 최종본을 갱신한다
-  }
-
-  const rankedList = Object.values(merged).sort((a, b) => b.feelsLike - a.feelsLike);
-  const totalCount = rankedList.length;
-  const ranked = rankedList.map((r, i) => ({
-    ...r,
-    rank: i + 1,
-    percentile: Math.max(1, Math.round(((i + 1) / totalCount) * 100)),
-  }));
-
-  const finalResult = {
-    updatedAt: new Date().toISOString(),
-    totalRegions: totalCount,
-    regions: ranked,
-  };
-
-  await put(LATEST_KEY, JSON.stringify(finalResult), {
-    access: 'public',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    contentType: 'application/json',
-    cacheControlMaxAge: 0,
-  });
-
-  return res.status(200).json({
-    chunk,
-    total,
-    fetchedThisChunk: succeeded,
-    collectedSoFar: totalCount,
-    done: true,
-  });
+  return res.status(200).json({ chunk, total, fetchedThisChunk: results.length, results });
 }

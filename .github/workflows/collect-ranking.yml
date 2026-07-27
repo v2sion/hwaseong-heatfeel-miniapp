@@ -12,19 +12,33 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     steps:
-      - name: Collect all chunks (rate-limit 준수를 위해 청크 사이 딜레이)
+      # (2026-07-26) 청크 결과를 Vercel Blob 대신 이 러너 메모리(merged.json)에서 직접
+      # 누적하고 /api/collect-finalize에 한 번만 넘긴다 - Blob Advanced Operations
+      # 무료 한도(월 2,000회) 소진 방지. 이유는 api/collect.js 헤더 주석 참고.
+      - name: Collect all chunks, merge locally, finalize once (rate-limit 준수를 위해 청크 사이 딜레이)
         env:
           BASE_URL: ${{ secrets.APP_BASE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -e
           TOTAL=5
+          echo "[]" > merged.json
           for CHUNK in $(seq 0 $((TOTAL - 1))); do
             echo "=== chunk $CHUNK / $TOTAL ==="
             curl -sf -X POST "$BASE_URL/api/collect?chunk=$CHUNK&total=$TOTAL" \
-              -H "Authorization: Bearer $CRON_SECRET"
+              -H "Authorization: Bearer $CRON_SECRET" -o "chunk_$CHUNK.json"
+            cat "chunk_$CHUNK.json"
             echo
+            jq -s '.[0] + (.[1].results // [])' merged.json "chunk_$CHUNK.json" > merged_next.json
+            mv merged_next.json merged.json
             if [ "$CHUNK" -lt $((TOTAL - 1)) ]; then
               sleep 65
             fi
           done
+          echo "=== finalize (누적된 $(jq 'length' merged.json)개 지역) ==="
+          jq '{regions: .}' merged.json > finalize_body.json
+          curl -sf -X POST "$BASE_URL/api/collect-finalize" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            --data-binary @finalize_body.json
+          echo
