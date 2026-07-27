@@ -605,6 +605,21 @@
     display:block; min-width:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
+  .bubble--mine{
+    border-color:var(--mint-400);
+    background:color-mix(in oklch, var(--mint-400) 14%, var(--white));
+    box-shadow:0 0 0 1.5px rgba(61,217,196,0.65), 0 0 8px 3px rgba(0,194,168,0.28);
+  }
+  .bubble--mine::after{
+    content:"나";
+    position:absolute; top:-8px; right:-6px;
+    width:16px; height:16px;
+    background:var(--mint-400); color:var(--white);
+    font-size:9px; font-weight:800;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
   /* (2026-07-18 3차 수정) 세로 밴드 분리 덕에 가로 위치는 겹침과 무관해졌으니, 매번 왼쪽에서만
      나오던 걸 좌/우 번갈아 나오게 해 예전처럼 좀 더 생동감 있게(요청 반영). */
   .bubble.align-left{ left:3%; }
@@ -1608,8 +1623,8 @@
       <h3>오늘 체감, 어때요?</h3>
       <p>같은 체감온도대인 다른 분들에게 버블로 잠깐 보여드려요. 한마디만 편하게 남겨주세요.</p>
       <div class="comment-input-wrap">
-        <input type="text" id="comment-input" maxlength="20" placeholder="오늘 체감을 한마디로 남겨보세요" oninput="onCommentInput()" />
-        <span class="comment-char-count" id="comment-char-count">0/20</span>
+        <input type="text" id="comment-input" maxlength="30" placeholder="오늘 체감을 한마디로 남겨보세요" oninput="onCommentInput()" />
+        <span class="comment-char-count" id="comment-char-count">0/30</span>
       </div>
       <p class="comment-filter-warning" id="comment-filter-warning">⚠️ 부적절한 표현이 포함돼 있어요</p>
       <div class="consent-actions">

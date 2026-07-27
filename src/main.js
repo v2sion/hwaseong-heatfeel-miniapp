@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets, closeView, share as tossShare, saveBase64Data } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets, closeView, share as tossShare, saveBase64Data, generateHapticFeedback, requestReview, getTossShareLink, setScreenAwakeMode } from '@apps-in-toss/web-framework';
 import html2canvas from 'html2canvas-pro';
 
 // 앱인토스로 패키징되면 정적 자산이 Toss 도메인(apps.tossmini.com 등)에서 서빙되므로,
@@ -9,6 +9,9 @@ const API_BASE = 'https://app-tau-ten-42.vercel.app';
 // 브릿지가 없는 일반 브라우저에서도 조용히 무시되도록 감싼 로깅 헬퍼.
 function trackScreen(params){ try{ Analytics.screen(params); }catch(err){} }
 function trackClick(params){ try{ Analytics.click(params); }catch(err){} }
+
+// 브릿지 없는 환경(일반 브라우저)에서 조용히 무시. 앱 안에서만 실제로 동작한다.
+function haptic(type){ try{ generateHapticFeedback({ type }); }catch(err){} }
 
 // 일부 환경(예: 브릿지가 없는 iOS Safari에서의 앱인토스 SDK 호출)은 실패 시
 // reject 대신 Promise가 영영 끝나지 않는 방식으로 멈출 수 있다. 그러면 await가
@@ -458,6 +461,7 @@ function renderAll(){
 ============================================================ */
 const BUBBLE_SPAWN_INTERVAL_MS = 1333; // 기존 2000ms의 1.5배 빠르게(= 2000/1.5)
 const BUBBLE_LIFESPAN_MS = 3470;        // 기존 5200ms의 1.5배 빠르게(= 5200/1.5), index.html의 3.47s와 동일
+const AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 // 콜드스타트(그 브래킷에 실제 코멘트가 거의 없을 때) 대비 시드 - 실제 코멘트와 섞어서
 // 버블 존이 텅 비어 보이지 않게 한다. 실제 코멘트가 3개 이상이면 시드는 안 섞는다.
@@ -512,6 +516,7 @@ const BUBBLE_ROWS = ['row-0', 'row-1', 'row-2'];
 let bubbleRowCursor = 0;
 let bubbleSpawnTimer = null;
 let bubblePool = [];
+let myBubbleText = null;
 let lastFetchedCommentBracket = null;
 
 // (2026-07-19, F5-3) 화면1/화면2가 각자 자기 존을 갖고 있고, spawnBubble()은 현재
@@ -536,7 +541,7 @@ function spawnBubble(text){
   // 없어서(고정 리드 행으로 이동) row-2도 다른 밴드와 동일하게 좌우 자유롭게 섞인다.
   const align = bubbleRowCursor % 2 === 0 ? 'align-left' : 'align-right';
   bubbleRowCursor += 1;
-  el.className = `bubble ${row} ${align}`;
+  el.className = `bubble ${row} ${align}${myBubbleText && text === myBubbleText ? ' bubble--mine' : ''}`;
   // (2026-07-18 버그 수정) 텍스트를 el에 직접 넣지 않고 내부 .bubble-text span에 넣는다 -
   // ellipsis 처리가 이 내부 block 요소에 걸려 있음(index.html .bubble-text 주석 참고).
   const span = document.createElement('span');
@@ -561,23 +566,34 @@ function pickWeighted(pool){
   }
   return pool[pool.length - 1].text;
 }
-let lastSpawnedComment = null;
+// 버블 수명 ÷ 스폰 간격 = 동시에 화면에 존재하는 최대 버블 수. 이 범위 안에서 같은 텍스트가
+// 두 번 뽑히면 동시에 화면에 두 개가 보인다 - 이 범위만큼 최근 이력을 기억해서 피한다.
+const BUBBLE_HISTORY_SIZE = Math.ceil(BUBBLE_LIFESPAN_MS / BUBBLE_SPAWN_INTERVAL_MS); // 3
+let recentSpawned = [];
 function pickNextComment(){
   if(bubblePool.length <= 1) return bubblePool[0]?.text;
+  // 풀 크기보다 이력 창을 크게 잡으면 영영 못 고르는 텍스트가 생기므로, 풀 크기 - 1로 제한.
+  const avoidCount = Math.min(BUBBLE_HISTORY_SIZE, bubblePool.length - 1);
+  const avoid = recentSpawned.slice(-avoidCount);
   let next;
   let guard = 0;
-  // 직전과 같은 문구가 연속으로 나오는 것만 피한다 - 가중치 풀이라 순수 무작위보다 같은 값이
-  // 다시 뽑힐 확률이 높아졌으므로, 무한루프 방지용 안전장치(guard)를 둔다.
   do{
     next = pickWeighted(bubblePool);
     guard++;
-  }while(next === lastSpawnedComment && guard < 10);
-  lastSpawnedComment = next;
+  }while(avoid.includes(next) && guard < 20);
+  recentSpawned.push(next);
+  if(recentSpawned.length > BUBBLE_HISTORY_SIZE) recentSpawned.shift();
   return next;
 }
 
 function startBubbleLoop(){
   clearTimeout(bubbleSpawnTimer);
+  recentSpawned = [];
+  // 브래킷이 바뀔 때 이전 버블이 수명이 남아 DOM에 잔류하면 새 버블과 섞여 보인다 - 초기화.
+  ['bubble-zone', 'bubble-zone-s2'].forEach(id => {
+    const z = document.getElementById(id);
+    if(z) z.innerHTML = '';
+  });
   if(bubblePool.length === 0) return;
   const tick = () => {
     spawnBubble(pickNextComment());
@@ -644,6 +660,7 @@ function clientContainsBlockedWord(text){
 // 근본적으로는, 애초에 오늘 이미 남겼다는 걸 시트를 열기도 전에 알 수 있으면 시트 자체를
 // 열 필요가 없다 - "+나도 한마디"를 누른 시점에 로컬에 기록해둔 날짜로 먼저 확인한다.
 const COMMENT_LAST_DATE_KEY = 'heatfeel_comment_last_date_v1';
+const COMMENT_LAST_TEXT_KEY = 'heatfeel_comment_last_text_v1';
 async function getStoredCommentDate(){
   try{ return await withTimeout(Storage.getItem(COMMENT_LAST_DATE_KEY), 1500); }
   catch(err){
@@ -658,13 +675,29 @@ async function setStoredCommentDate(value){
     catch(err2){ /* 저장 실패해도 이번 세션 동작에는 지장 없음 - 서버 429가 최종 방어선 */ }
   }
 }
+async function getStoredCommentText(){
+  try{ return await withTimeout(Storage.getItem(COMMENT_LAST_TEXT_KEY), 1500); }
+  catch(err){
+    try{ return localStorage.getItem(COMMENT_LAST_TEXT_KEY); }
+    catch(err2){ return null; }
+  }
+}
+async function setStoredCommentText(value){
+  try{ await withTimeout(Storage.setItem(COMMENT_LAST_TEXT_KEY, value), 1500); }
+  catch(err){
+    try{ localStorage.setItem(COMMENT_LAST_TEXT_KEY, value); }
+    catch(err2){ }
+  }
+}
 
 // (2026-07-20 추가) 오늘 이미 한마디를 남겼으면 네온 글로우를 꺼서(테두리만 남기고) "지금
 // 눌러도 되는 버튼"으로 착각하지 않게 한다. body 클래스 하나로 화면1·화면2 버튼(둘 다
 // .hook-card-comment-btn 공용 클래스) 모두 한 번에 처리.
 async function updateCommentButtonNeonState(){
   const lastDate = await getStoredCommentDate();
-  document.body.classList.toggle('commented-today', lastDate === todayDateKey());
+  const isCommentedToday = lastDate === todayDateKey();
+  document.body.classList.toggle('commented-today', isCommentedToday);
+  myBubbleText = isCommentedToday ? (await getStoredCommentText() ?? null) : null;
 }
 
 async function openCommentSheet(){
@@ -687,7 +720,7 @@ function closeCommentSheet(){
 }
 function updateCommentCharCount(){
   const len = document.getElementById('comment-input').value.length;
-  document.getElementById('comment-char-count').textContent = `${len}/20`;
+  document.getElementById('comment-char-count').textContent = `${len}/30`;
 }
 function updateCommentSubmitState(){
   const text = document.getElementById('comment-input').value.trim();
@@ -700,6 +733,27 @@ function onCommentInput(){
   input.classList.toggle('blocked', blocked);
   document.getElementById('comment-filter-warning').classList.toggle('show', blocked);
   updateCommentSubmitState();
+}
+
+const REVIEW_REQUESTED_KEY = 'heatfeel_review_requested_v1';
+async function maybeRequestReview(){
+  // 1회만 요청. 이미 요청했으면 건너뛴다.
+  try{
+    const already = await withTimeout(Storage.getItem(REVIEW_REQUESTED_KEY), 1000);
+    if(already) return;
+  }catch(err){
+    try{ if(localStorage.getItem(REVIEW_REQUESTED_KEY)) return; }catch(e){}
+  }
+  // 코멘트 제출 직후 바로 팝업이 뜨면 타이밍이 어색하므로 1.5초 뒤에 요청한다.
+  setTimeout(async () => {
+    try{
+      if(typeof requestReview.isSupported === 'function' && !requestReview.isSupported()) return;
+      await requestReview();
+      try{ await Storage.setItem(REVIEW_REQUESTED_KEY, '1'); }catch(e){
+        try{ localStorage.setItem(REVIEW_REQUESTED_KEY, '1'); }catch(e2){}
+      }
+    }catch(err){ console.warn('requestReview 실패(브라우저 환경 등):', err); }
+  }, 1500);
 }
 
 async function submitComment(){
@@ -742,10 +796,14 @@ async function submitComment(){
       return;
     }
     setStoredCommentDate(todayDateKey());
+    setStoredCommentText(text);
+    myBubbleText = text;
     updateCommentButtonNeonState();
     spawnBubble(text);
     closeCommentSheet();
+    haptic('success');
     showToast('코멘트가 등록됐어요');
+    maybeRequestReview();
   }catch(err){
     console.warn('코멘트 등록 실패:', err);
     showToast('코멘트 등록에 실패했어요');
@@ -770,10 +828,21 @@ function updateDataErrorBanner(){
   banner.classList.toggle('show', weatherLoadFailed || rankingLoadFailed);
 }
 
-function retryDataLoad(){
-  loadRealWeather();
-  loadRanking();
-  loadDongRanking();
+async function retryDataLoad(){
+  const btn = document.querySelector('#data-error-banner button');
+  if(btn){ btn.disabled = true; btn.textContent = '재시도 중...'; }
+  await Promise.allSettled([loadRealWeather(), loadRanking(), loadDongRanking()]);
+  if(btn){ btn.disabled = false; btn.textContent = '재시도'; }
+}
+
+let autoRefreshTimer = null;
+function startAutoRefresh(){
+  clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    loadRealWeather();
+    loadRanking();
+    loadDongRanking();
+  }, AUTO_REFRESH_INTERVAL_MS);
 }
 
 /* ============================================================
@@ -940,6 +1009,8 @@ function goToScreen(n){
   const targetScreen = document.getElementById('screen-' + n);
   if(targetScreen) targetScreen.scrollTop = 0;
   trackScreen({ log_name: 'screen_view', screen: n });
+  // 순위 비교 화면(2)은 오래 보는 화면이라 화면 꺼짐을 방지한다. 다른 화면은 해제.
+  try{ setScreenAwakeMode({ enabled: n === 2 }); }catch(err){}
 }
 
 // 앱인토스 콘솔 "주요 기능"(intoss://{appName}/ranking 같은 딥링크)으로 들어왔을 때
@@ -1010,6 +1081,7 @@ function showToast(msg){
 // 브릿지가 없는 일반 브라우저(로컬/Vercel 단독 접속 데모)에서만 기존 다운로드 링크로 폴백한다.
 async function saveShareCardImage(){
   trackClick({ log_name: 'save_image' });
+  haptic('tap');
   const card = document.querySelector('#screen-3 .share-card');
   if(!card){
     showToast('이미지 저장 기능을 불러오지 못했습니다');
@@ -1061,6 +1133,19 @@ async function buildShareUrl(){
     rank: String(currentRankPercent),
     copy: `${currentHookCopyLines.join(' ')} ${currentMemeCopy}`,
   };
+
+  // getTossShareLink: 토스 앱이 설치된 수신자는 앱 진입, 미설치자는 스토어로 안내.
+  // 실패(브라우저 환경 등)하면 기존 /api/shorten → 쿼리스트링 순으로 폴백한다.
+  try{
+    const tossLink = await withTimeout(
+      getTossShareLink('intoss://mudeowerank/ranking', `${API_BASE}/og-image.png`),
+      3000
+    );
+    if(tossLink) return tossLink;
+  }catch(err){
+    console.warn('getTossShareLink 실패, /api/shorten으로 대체:', err);
+  }
+
   try{
     const res = await withTimeout(fetch(`${API_BASE}/api/shorten`, {
       method: 'POST',
@@ -1085,6 +1170,7 @@ async function buildShareUrl(){
 // 일반 브라우저에서만 navigator.share → 클립보드 복사 순으로 대체한다.
 async function shareResult(){
   trackClick({ log_name: 'share_native' });
+  haptic('tap');
   const title = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`;
   const text = `${currentHookCopyLines.join(' ')} ${currentMemeCopy}`;
   const shareUrl = await buildShareUrl();
@@ -1250,6 +1336,26 @@ async function setStoredConsent(value){
      그 버전을 Storage에 기록해두고, 그 버전 이하로는 다시 안 뜬다 - 최초 고지 동의 패턴과 동일.
 ============================================================ */
 const CHANGELOG = [
+  {
+    version: '2026-07-26b',
+    summary: '더 편리하게 다듬었어요',
+    detail: [
+      '데이터가 10분마다 자동으로 갱신돼요',
+      '내가 남긴 한마디가 코멘트 버튼 아래에 보여요',
+      '체감 한마디를 30자까지 남길 수 있어요',
+      '"재시도" 버튼이 누르는 동안 진행 상황을 알려줘요',
+    ],
+  },
+  {
+    version: '2026-07-25b',
+    summary: '더 앱다운 경험으로 다듬었어요',
+    detail: [
+      '체감 한마디를 남기면 진동으로 알려줘요',
+      '버튼을 누를 때 손끝에 피드백이 느껴져요',
+      '공유 링크를 받은 분은 토스 앱으로 바로 진입할 수 있어요',
+      '순위를 보는 동안 화면이 꺼지지 않아요',
+    ],
+  },
   {
     // (2026-07-26) 직전 배치(2026-07-18)는 2026-07-20에 실제 배포 확인됨(앱인토스/
     // 06_배포확인이력.md 참고) - 새 배포 확인 사이클이라 새 버전 항목으로 시작.
@@ -1424,6 +1530,7 @@ async function bootWithSkeleton(loaderFn, { locating = false, maxWaitMs = 20000 
     document.body.classList.remove('is-locating');
     stopLocatingMessages();
   }
+  startAutoRefresh();
 }
 
 // 체감온도 색상 안내 모달 - 색만으로 구분하기 어려운 사용자를 위해 구간별 온도 기준을 텍스트로 보여준다.

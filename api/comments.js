@@ -8,7 +8,7 @@ import { put, list, head } from '@vercel/blob';
 import { containsBlockedWord } from './_lib/moderation.js';
 
 const VALID_BRACKETS = ['cool', 'warm', 'hot', 'veryHot', 'extreme', 'tropicalNight'];
-const MAX_TEXT_LEN = 20;
+const MAX_TEXT_LEN = 30;
 const LIST_LIMIT = 15;
 
 function sanitizeKeyPart(str) {
