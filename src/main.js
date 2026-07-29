@@ -786,8 +786,13 @@ async function submitComment(){
     if(res.status === 429){
       // 로컬 기록과 어긋난 경우(다른 기기 등) 서버가 최종 방어선 - 여기서도 날짜를
       // 맞춰 저장해 다음부터는 시트를 열기 전에 미리 걸러지게 한다.
+      // (2026-07-27 수정) setStoredCommentDate()를 await 없이 부르고 곧바로
+      // updateCommentButtonNeonState()가 Storage를 다시 읽었더니, 그 read가 방금 fire-and-
+      // forget으로 던진 write보다 먼저 끝나버려 예전 값을 읽는 경쟁 상태가 있었음 - "코멘트
+      // 등록 후에도 네온이 안 꺼진다"는 버그의 원인. 여기선 상태를 이미 알고 있으니 Storage를
+      // 다시 읽지 않고 body 클래스를 바로 켠다.
       setStoredCommentDate(todayDateKey());
-      updateCommentButtonNeonState();
+      document.body.classList.add('commented-today');
       showToast('오늘은 이미 한마디 남기셨어요');
       return;
     }
@@ -798,7 +803,7 @@ async function submitComment(){
     setStoredCommentDate(todayDateKey());
     setStoredCommentText(text);
     myBubbleText = text;
-    updateCommentButtonNeonState();
+    document.body.classList.add('commented-today');
     spawnBubble(text);
     closeCommentSheet();
     haptic('success');
@@ -1337,13 +1342,14 @@ async function setStoredConsent(value){
 ============================================================ */
 const CHANGELOG = [
   {
-    version: '2026-07-26b',
+    version: '2026-07-28',
     summary: '더 편리하게 다듬었어요',
     detail: [
       '데이터가 10분마다 자동으로 갱신돼요',
-      '내가 남긴 한마디가 코멘트 버튼 아래에 보여요',
+      '내가 남긴 한마디가 버블로 떠오를 때 민트색으로 구별돼요',
       '체감 한마디를 30자까지 남길 수 있어요',
       '"재시도" 버튼이 누르는 동안 진행 상황을 알려줘요',
+      '체감 한마디를 남긴 뒤에도 버튼 네온 효과가 안 꺼지던 문제를 고쳤어요',
     ],
   },
   {
