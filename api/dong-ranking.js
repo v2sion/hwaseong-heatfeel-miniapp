@@ -7,32 +7,40 @@
 import { put, head } from '@vercel/blob';
 import DONG_BY_CITY from '../data/dong-all.json';
 
+// 도시별 Blob downloadUrl을 인스턴스 메모리에 캐싱 — 웜 인스턴스는 head()(Advanced Operation)
+// 없이 저장된 URL로 직접 fetch한다. Vercel Blob Advanced Operations 절약 목적(2026-08-10).
+const _cacheUrlByCity = new Map();
+
 function cacheKey(cityCode) {
   return `dong-cache/${cityCode}.json`;
 }
 
-// (2026-07-25 재수정) 시 단위(/api/ranking)는 GitHub Actions가 매시 5분·35분에 전국을
-// 배치 수집(.github/workflows/collect-ranking.yml 참고)해서 항상 "정해진 30분 구간"의
-// 스냅샷을 보여준다. 동 단위는 원래 "마지막 조회로부터 60분" 롤링 TTL이라, 같은 화면2
+// (2026-07-25 재수정) 시 단위(/api/ranking)는 GitHub Actions가 매시 5분에 전국을
+// 배치 수집(.github/workflows/collect-ranking.yml 참고)해서 항상 "정해진 시간 구간"의
+// 스냅샷을 보여준다. 동 단위는 원래 "마지막 조회로부터 60분" 롤링 TTL이라, 같은 화면
 // 안에서도 두 패널의 기준 시각이 서로 다른 임의의 시점으로 어긋나 보였음(정합성 피드백).
 // API 호출량을 늘리지 않으면서(여전히 실제 요청 들어온 도시만 온디맨드) 시 단위와 같은
-// 30분 구간에 맞춰 갱신되도록, "마지막 갱신이 지금과 같은 30분 구간인지"로 캐시 유효성을
-// 판정하는 방식으로 바꾼다 - 구간이 바뀌는 순간(예: :29→:30) 바로 재수집을 트리거해
-// 다음 조회부터는 시 단위와 같은 구간의 스냅샷을 보여준다.
+// 1시간 구간에 맞춰 갱신되도록, "마지막 갱신이 지금과 같은 1시간 구간인지"로 캐시 유효성을
+// 판정하는 방식으로 바꾼다.
 function bucketOf(date) {
-  const half = date.getMinutes() < 30 ? 0 : 30;
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}-${half}`;
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
 }
 
 async function readCached(cityCode) {
   try {
-    const meta = await head(cacheKey(cityCode));
-    const res = await fetch(`${meta.downloadUrl}?t=${Date.now()}`, { cache: 'no-store' });
+    let downloadUrl = _cacheUrlByCity.get(cityCode);
+    if (!downloadUrl) {
+      const meta = await head(cacheKey(cityCode));
+      downloadUrl = meta.downloadUrl;
+      _cacheUrlByCity.set(cityCode, downloadUrl);
+    }
+    const res = await fetch(`${downloadUrl}?t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return null;
     const data = await res.json();
     if (bucketOf(new Date(data.updatedAt)) !== bucketOf(new Date())) return null;
     return data;
   } catch (err) {
+    _cacheUrlByCity.delete(cityCode); // 오류 시 초기화해 다음 요청에서 재시도
     return null;
   }
 }
@@ -92,13 +100,15 @@ export default async function handler(req, res) {
     dong: ranked,
   };
 
-  await put(cacheKey(cityCode), JSON.stringify(result), {
+  const putResult = await put(cacheKey(cityCode), JSON.stringify(result), {
     access: 'public',
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: 'application/json',
     cacheControlMaxAge: 0,
   });
+  // put() 반환 URL을 즉시 캐싱 — 다음 readCached에서 head() 없이 재사용.
+  _cacheUrlByCity.set(cityCode, putResult.downloadUrl);
 
   res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=120');
   return res.status(200).json(result);

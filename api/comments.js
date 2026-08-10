@@ -48,7 +48,9 @@ async function handleGet(req, res) {
         }
       })
     );
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60');
+    // (2026-08-10) list()는 Advanced Operation으로 과금되므로 CDN 캐시를 5분으로 늘려
+    // 동일 브래킷 반복 조회 시 함수 호출 자체를 줄인다.
+    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=120');
     res.status(200).json({ comments: items.filter(Boolean) });
   } catch (err) {
     console.warn('comments list failed:', err);
