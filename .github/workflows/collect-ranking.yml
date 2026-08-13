@@ -25,8 +25,20 @@ jobs:
           echo "[]" > merged.json
           for CHUNK in $(seq 0 $((TOTAL - 1))); do
             echo "=== chunk $CHUNK / $TOTAL ==="
-            curl -sf -X POST "$BASE_URL/api/collect?chunk=$CHUNK&total=$TOTAL" \
-              -H "Authorization: Bearer $CRON_SECRET" -o "chunk_$CHUNK.json"
+            # Vercel 일시적 오류(503 등) 대비 최대 3회 재시도
+            for ATTEMPT in 1 2 3; do
+              if curl -sf --max-time 30 -X POST "$BASE_URL/api/collect?chunk=$CHUNK&total=$TOTAL" \
+                -H "Authorization: Bearer $CRON_SECRET" -o "chunk_$CHUNK.json"; then
+                break
+              fi
+              if [ "$ATTEMPT" -lt 3 ]; then
+                echo "chunk $CHUNK attempt $ATTEMPT failed, retrying in 15s..."
+                sleep 15
+              else
+                echo "chunk $CHUNK failed after 3 attempts"
+                exit 1
+              fi
+            done
             cat "chunk_$CHUNK.json"
             echo
             jq -s '.[0] + (.[1].results // [])' merged.json "chunk_$CHUNK.json" > merged_next.json
@@ -37,8 +49,20 @@ jobs:
           done
           echo "=== finalize (누적된 $(jq 'length' merged.json)개 지역) ==="
           jq '{regions: .}' merged.json > finalize_body.json
-          curl -sf -X POST "$BASE_URL/api/collect-finalize" \
-            -H "Authorization: Bearer $CRON_SECRET" \
-            -H "Content-Type: application/json" \
-            --data-binary @finalize_body.json
+          # finalize도 동일하게 재시도
+          for ATTEMPT in 1 2 3; do
+            if curl -sf --max-time 30 -X POST "$BASE_URL/api/collect-finalize" \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              -H "Content-Type: application/json" \
+              --data-binary @finalize_body.json; then
+              break
+            fi
+            if [ "$ATTEMPT" -lt 3 ]; then
+              echo "finalize attempt $ATTEMPT failed, retrying in 15s..."
+              sleep 15
+            else
+              echo "finalize failed after 3 attempts"
+              exit 1
+            fi
+          done
           echo
