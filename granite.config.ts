@@ -9,7 +9,9 @@ export default defineConfig({
   },
   web: {
     host: 'localhost',
-    port: 5173,
+    // 포트는 앱마다 고유값으로 고정. vite.config.js(strictPort)와 .claude/launch.json이
+    // 같은 값을 쓰므로 셋 중 하나만 바꾸지 말 것.
+    port: 5174,
     commands: {
       dev: 'vite',
       build: 'vite build',
