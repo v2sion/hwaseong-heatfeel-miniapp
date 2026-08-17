@@ -4,5 +4,8 @@
   "rewrites": [
     { "source": "/ranking", "destination": "/index.html" },
     { "source": "/s/:id", "destination": "/api/share?id=:id" }
+  ],
+  "crons": [
+    { "path": "/api/push-notify-daily", "schedule": "0 2 * * *" }
   ]
 }
