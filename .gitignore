@@ -8,3 +8,6 @@ dist
 *.ait
 
 .env*
+
+# Claude Code 개인 설정 (절대경로 포함, 환경마다 다름)
+.claude/settings.json
