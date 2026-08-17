@@ -369,6 +369,13 @@
     transition:opacity .3s ease;
   }
   body.is-loading .temp-hero .discomfort-index{ opacity:0; }
+  body.is-loading #push-notify-row{
+    background-image:linear-gradient(90deg, rgba(139,149,161,0.16) 25%, rgba(139,149,161,0.32) 37%, rgba(139,149,161,0.16) 63%);
+    background-size:400% 100%;
+    animation:skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  body.is-loading #push-notify-row .push-notify-label,
+  body.is-loading #push-notify-row .push-notify-toggle{ opacity:0; }
 
   .hook-card{
     margin-top:28px;
@@ -519,30 +526,76 @@
     animation:skeleton-shimmer 1.4s ease-in-out infinite;
   }
 
-  .cta-wrap{ margin-top:26px; padding-bottom:12px; }
-  .cta-wrap .helper{
-    text-align:center;
-    font-size:12px;
-    color:var(--ink-300);
-    margin-top:10px;
+  /* F6-4: 기능성 알림 토글 - temp-hero 안에 배치 */
+  .push-notify-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:18px; padding:11px 14px;
+    background:var(--ink-50);
+    border-radius:var(--radius-md);
+    text-align:left;
   }
-  .heatbattle-banner{
+  .push-notify-label{ font-size:13px; color:var(--ink-500); flex:1; }
+  .push-notify-toggle{
+    position:relative; width:44px; height:26px; border-radius:13px;
+    border:none; cursor:pointer; background:var(--ink-200);
+    transition:background .2s; flex-shrink:0;
+  }
+  .push-notify-toggle.on{ background:#5BADA5; }
+  .push-notify-thumb{
+    position:absolute; top:3px; left:3px;
+    width:20px; height:20px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.25);
+    transition:transform .2s;
+  }
+  .push-notify-toggle.on .push-notify-thumb{ transform:translateX(18px); }
+  /* F8: 크로스 프로모션 플로팅 배너 */
+  .crosspromo-float{
+    position:absolute;
+    left:16px; right:16px;
+    bottom:calc(84px + var(--toss-safe-bottom));
+    z-index:20;
     display:flex;
     align-items:center;
-    justify-content:space-between;
-    width:100%;
-    margin-top:14px;
-    padding:14px 16px;
-    border:none;
     border-radius:var(--radius-md);
-    background:var(--orange-500, #FF7A3D);
-    color:#fff;
-    font-family:var(--font);
-    font-size:14px;
-    font-weight:700;
-    cursor:pointer;
+    background:linear-gradient(135deg,#81D4FA,#29B6F6);
+    box-shadow:0 4px 20px rgba(41,182,246,.30);
+    opacity:0;
+    transform:translateY(16px);
+    pointer-events:none;
+    transition:opacity .28s ease, transform .35s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .heatbattle-banner .to{ font-size:12px; font-weight:600; opacity:.9; }
+  .crosspromo-float.show{
+    opacity:1;
+    transform:translateY(0);
+    pointer-events:auto;
+  }
+  .crosspromo-float-main{
+    flex:1;
+    display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+    padding:12px 10px 12px 16px;
+    border:none; background:none; cursor:pointer;
+    color:#fff; font-family:var(--font);
+    text-align:left;
+  }
+  .crosspromo-float-copy{ font-size:14px; font-weight:700; line-height:1.3; }
+  .crosspromo-float-sub{ font-size:12px; font-weight:600; opacity:.85; margin-top:3px; }
+  .crosspromo-float-close{
+    padding:14px 16px;
+    border:none; background:none; cursor:pointer;
+    color:rgba(255,255,255,.75); font-size:18px; line-height:1;
+  }
+  #comment-success-body{ text-align:center; padding:4px 0 0; }
+  #comment-success-body .comment-success-msg{ font-size:18px; font-weight:700; color:var(--ink-900); margin:0 0 8px; }
+  #comment-success-body .comment-success-sub{ font-size:14px; color:var(--ink-500); margin:0 0 20px; }
+  .crosspromo-sheet-btn{
+    display:flex; align-items:center; justify-content:space-between;
+    width:100%; padding:14px 16px; border:none;
+    border-radius:var(--radius-md);
+    background:linear-gradient(135deg,#81D4FA,#29B6F6);
+    color:#fff; font-family:var(--font); font-size:14px; font-weight:700; cursor:pointer;
+    margin-bottom:12px;
+  }
+  .crosspromo-sheet-btn .to{ font-size:12px; font-weight:600; opacity:.9; }
 
   .comment-input-wrap{ position:relative; margin-bottom:6px; }
   .comment-input-wrap input{
@@ -1364,7 +1417,7 @@
           <span id="s1-rank-badge-text">강남구, 오늘 전국 256개 시군구 중 상위 7%</span>
         </span>
 
-        <!-- 업데이트 알림 창구 - 정색한 공지가 아니라 "훑고 지나가는" 캐주얼한 톤.
+<!-- 업데이트 알림 창구 - 정색한 공지가 아니라 "훑고 지나가는" 캐주얼한 톤.
              새 버전이 있을 때만 뜨고, 닫으면 그 버전은 Storage에 기록돼 다시 안 뜬다.
              (2026-07-18 이동) 코멘트 버블 영역 바로 위, 순위 뱃지 바로 아래로 재배치 - 첫
              화면 정보 순서를 "순위 → 소식 → 다른 사람 반응"으로 정리. -->
@@ -1406,6 +1459,13 @@
           <div class="sub" id="s1-sub">기상청 동네예보 기준 · 마지막 업데이트 방금 전</div>
           <div class="actual-temp" id="s1-actual-temp">실제 기온 <span id="s1-actual-temp-value">31</span>°</div>
           <div class="discomfort-index" id="s1-discomfort">불쾌지수 <span id="s1-discomfort-value">72</span> · <span id="s1-discomfort-label">보통</span></div>
+          <!-- F6-4: 기능성 알림 토글 - 체감온도 바로 아래, mini app 컨텍스트에서만 표시 -->
+          <div class="push-notify-row" id="push-notify-row" style="display:none;">
+            <span class="push-notify-label">매일 오전 체감온도 알림 받기</span>
+            <button class="push-notify-toggle" id="push-notify-toggle" onclick="togglePushNotify()" aria-label="알림 켜기/끄기">
+              <span class="push-notify-thumb"></span>
+            </button>
+          </div>
         </div>
 
         <div class="hook-card" id="hook-card">
@@ -1438,16 +1498,6 @@
           </div>
         </div>
 
-        <div class="cta-wrap">
-          <!-- F8: 형제 앱 "무더위 배틀" 크로스 프로모션 배너. 더위배틀이 실제로 출시되기 전까진
-               HEATBATTLE_LIVE=false로 숨겨둔다(main.js) - 딥링크 대상이 아직 존재하지 않기 때문. -->
-          <button class="heatbattle-banner" id="heatbattle-banner" onclick="openHeatBattle()" style="display:none;">
-            🔥 오늘의 무더위 배틀 참여하기 <span class="to">무더위 배틀로 이동 →</span>
-          </button>
-          <div style="text-align:center;margin-top:4px;">
-            <a class="attribution" href="https://openweathermap.org" target="_blank" rel="noopener"><span class="owm-dot"></span>Powered by OpenWeatherMap</a>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -1559,6 +1609,15 @@
     </div>
   </div>
 
+  <!-- F8: 크로스 프로모션 플로팅 배너 - CROSSPROMO_LIVE=true 일 때 데이터 로드 후 슬라이드업 -->
+  <div class="crosspromo-float" id="crosspromo-float">
+    <button class="crosspromo-float-main" onclick="openCrossPromo()">
+      <span class="crosspromo-float-copy">🫧 지금 이 기분, 비눗방울로 날려봐요</span>
+      <span class="crosspromo-float-sub">비눗방울 타임 →</span>
+    </button>
+    <button class="crosspromo-float-close" onclick="closeCrossPromoFloat()" aria-label="닫기">✕</button>
+  </div>
+
   <!-- (2026-07-18 버그 수정) 원래 화면3(공유카드) 안에 있던 걸 여기로 옮겼다 - showToast()가
        화면1(코멘트 제출 등)에서도 호출되는데, toast가 화면3 DOM 안에 있으면 사용자가 화면1을
        보고 있는 동안 .device의 overflow:hidden에 가려 완전히 안 보이는 위치에 렌더링되고
@@ -1616,20 +1675,31 @@
   </div>
 
   <!-- F5(2026-07-18): 체감 코멘트 입력 바텀시트 - consent-overlay/bracket-info-overlay와
-       동일한 구조·스타일을 그대로 재사용해 톤을 맞춘다. -->
+       동일한 구조·스타일을 그대로 재사용해 톤을 맞춘다.
+       F8(2026-08-01): 제출 성공 후 비눗방울 타임 크로스 프로모션 상태(Option B) 추가. -->
   <div class="consent-overlay" id="comment-overlay">
     <div class="consent-sheet">
       <div class="sheet-grabber"></div>
-      <h3>오늘 체감, 어때요?</h3>
-      <p>같은 체감온도대인 다른 분들에게 버블로 잠깐 보여드려요. 한마디만 편하게 남겨주세요.</p>
-      <div class="comment-input-wrap">
-        <input type="text" id="comment-input" maxlength="30" placeholder="오늘 체감을 한마디로 남겨보세요" oninput="onCommentInput()" />
-        <span class="comment-char-count" id="comment-char-count">0/30</span>
+      <div id="comment-form-body">
+        <h3>오늘 체감, 어때요?</h3>
+        <p>같은 체감온도대인 다른 분들에게 버블로 잠깐 보여드려요. 한마디만 편하게 남겨주세요.</p>
+        <div class="comment-input-wrap">
+          <input type="text" id="comment-input" maxlength="30" placeholder="오늘 체감을 한마디로 남겨보세요" oninput="onCommentInput()" />
+          <span class="comment-char-count" id="comment-char-count">0/30</span>
+        </div>
+        <p class="comment-filter-warning" id="comment-filter-warning">⚠️ 부적절한 표현이 포함돼 있어요</p>
+        <div class="consent-actions">
+          <button class="primary-btn" id="comment-submit-btn" onclick="submitComment()" disabled aria-label="한마디 남기기">남기기</button>
+          <button class="consent-skip" onclick="closeCommentSheet()" aria-label="닫기">닫기</button>
+        </div>
       </div>
-      <p class="comment-filter-warning" id="comment-filter-warning">⚠️ 부적절한 표현이 포함돼 있어요</p>
-      <div class="consent-actions">
-        <button class="primary-btn" id="comment-submit-btn" onclick="submitComment()" disabled aria-label="한마디 남기기">남기기</button>
-        <button class="consent-skip" onclick="closeCommentSheet()" aria-label="닫기">닫기</button>
+      <div id="comment-success-body" style="display:none;">
+        <p class="comment-success-msg">오늘 한마디, 버블로 날아갔어요 🫧</p>
+        <p class="comment-success-sub">비눗방울 타임에서도 오늘 기분 날려볼까요?</p>
+        <button class="crosspromo-sheet-btn" onclick="openCrossPromo()">
+          <span>🫧 비눗방울 타임 바로가기</span><span class="to">→</span>
+        </button>
+        <button class="consent-skip" onclick="closeCommentSheet()">나중에</button>
       </div>
     </div>
   </div>

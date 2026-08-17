@@ -1,4 +1,4 @@
-import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets, closeView, share as tossShare, saveBase64Data, generateHapticFeedback, requestReview, getTossShareLink, setScreenAwakeMode } from '@apps-in-toss/web-framework';
+import { Accuracy, getCurrentLocation, graniteEvent, getAnonymousKey, Storage, setClipboardText, Analytics, SafeAreaInsets, closeView, share as tossShare, saveBase64Data, generateHapticFeedback, requestReview, getTossShareLink, setScreenAwakeMode, requestNotificationAgreement } from '@apps-in-toss/web-framework';
 import html2canvas from 'html2canvas-pro';
 
 // 앱인토스로 패키징되면 정적 자산이 Toss 도메인(apps.tossmini.com 등)에서 서빙되므로,
@@ -210,27 +210,27 @@ function getHeatColorVarRef(feelsLikeTemp, night = isNightHour()){
 ============================================================ */
 const HOOK_COPY_TEMPLATES = {
   tropicalNight: [
-    ["{region}, 에어컨 없이 자면", "찜질방 숙박 체험! 오늘 밤도 열대야예요"],
-    ["{region}, 창문 열어도 후끈한 밤.", "선풍기 두 대는 기본 옵션인 열대야!"],
+    ["{region} 지금 체감 {temp}°인데", "자려고 누웠더니 땀이 줄줄... 열대야 실화?"],
+    ["{region} 오늘 밤 열대야임.", "에어컨 없이 자면 찜질방 숙박권 증정 ㅋ"],
   ],
   extreme: [ // 38도 이상 - 폭염
-    ["{region}, 계란 프라이 바로 되는", "폭염 날씨! 나가면 5분 만에 후회할지도"],
-    ["{region}, 마스크 쓰면 사우나 체험판.", "야외활동은 잠시 미루는 게 좋겠어요"],
+    ["{region} 체감 {temp}°야 지금", "폭염 경보 수준. 5분만 나가도 후회함"],
+    ["{region} 밖에 나가면 계란 프라이 됨.", "체감 {temp}° 폭염 실화ㅋ 🍳"],
   ],
   veryHot: [ // 35도 이상 - 매우 더움
-    ["{region}, 러닝하면 찜질방에서 뛰는", "느낌의 날씨! 그늘도 못 피하는 더위예요"],
-    ["{region}, 에어컨 없인 못 버티는 날.", "아스팔트 위 계란 프라이도 머지않았어요"],
+    ["{region} 체감 {temp}°인데 이게 뭔 날씨야", "그늘도 소용없고 그냥 야외 찜질방 느낌"],
+    ["{region}에 있는데 체감 {temp}°야...", "아이스아메리카노 이미 두 잔째 ㅋ"],
   ],
   hot: [ // 33도 이상 - 더움
-    ["{region}, 오늘은 동남아 여행 갈 필요 없는", "동남아 그 자체. 러닝하면 찜질방에서 뛰는 날씨!"],
-    ["{region}, 가만히 있어도 땀이 주르륵.", "아이스아메리카노는 선택 아닌 필수인 날씨!"],
+    ["{region} 지금 체감 {temp}°임", "동남아 여행 굳이 안 가도 되는 날씨"],
+    ["{region} 가만히 있어도 땀 나는 날", "체감 {temp}°. 아아는 이미 선택 아닌 필수"],
   ],
   warm: [ // 30도 이상 - 약간 더움
-    ["{region}, 그늘 밖은 슬슬 후끈한", "낌새예요. 반팔이 이제 정답인 날씨네요!"],
-    ["{region}, 아직 폭염까진 아니지만", "이미 더위가 시작된 느낌이에요!"],
+    ["{region} 슬슬 덥기 시작함. 체감 {temp}°", "반팔은 이미 정답. 곧 무너질 것 같음"],
+    ["{region} 오늘 체감 {temp}°예요.", "아직 버틸 만은 한데... 슬슬 예열 중"],
   ],
   cool: [ // 30도 미만 - 쾌적
-    ["{region}, 오늘은 그럭저럭 견딜만한", "더위예요. 그래도 수분 보충은 잊지 마세요!"],
+    ["{region} 오늘은 비교적 선선함. 체감 {temp}°", "이 정도면 나쁘지 않죠 뭐 😌"],
   ],
 };
 
@@ -260,7 +260,8 @@ function getHookCopyLines(regionName, feelsLikeTemp){
   const bracket = getHeatBracketKey(feelsLikeTemp);
   const seedKey = `${regionName}-${Math.round(feelsLikeTemp)}-${bracket}-${todayDateKey()}`;
   const template = pickTemplate(HOOK_COPY_TEMPLATES[bracket], seedKey);
-  return template.map(line => line.replace('{region}', regionName));
+  const tempStr = fmtTemp(feelsLikeTemp);
+  return template.map(line => line.replace('{region}', regionName).replace(/{temp}/g, tempStr));
 }
 
 /* ============================================================
@@ -435,8 +436,8 @@ function renderScreen3(){
   }else{
     compareChip.textContent = `불쾌지수 ${Math.round(discomfortIndex)} · ${getDiscomfortLabel(discomfortIndex)}`;
   }
-  document.getElementById('s3-hook-copy').innerHTML =
-    `${currentHookCopyLines.join(' ')}<br/><span class="meme-line">${currentMemeCopy}</span>`;
+  const s3HookLines = currentHookCopyLines.map(line => line.replace(currentRegionName, '').trim());
+  document.getElementById('s3-hook-copy').textContent = s3HookLines.join(' ');
   document.getElementById('s3-hashtag').textContent = MOCK_CHALLENGE_HASHTAG;
   document.getElementById('s3-watermark').textContent = MOCK_CHALLENGE_HASHTAG;
 }
@@ -617,10 +618,10 @@ function buildWeightedCommentPool(realComments, seedComments, memeLines){
 
 async function loadBracketComments(bracket){
   const seeds = SEED_COMMENTS[bracket] || [];
-  // (2026-07-19 재수정) 밈 서브카피(F3)를 별도 고정 칩으로 두지 않고, 다른 유저 코멘트와
-  // 같은 풀에 합류시켜 랜덤으로 함께 노출한다 - 시드(부트스트랩용, 실제 코멘트 쌓이면 밀려남)
-  // 와 달리 밈은 실제 코멘트 수와 무관하게 항상 풀에 포함(브랜드 톤 요소이므로).
   const memeLines = MEME_COPY_TEMPLATES[bracket] || [];
+  // 브래킷 전환 즉시 시드 풀로 교체 — API 응답 전 구간에 이전 브래킷 버블이 뜨는 것을 방지.
+  // (mock 초기 렌더 → hot 풀 로딩 → 실제 cool 온도 확인 전환 시에도 동일하게 적용됨)
+  bubblePool = buildWeightedCommentPool([], seeds, memeLines);
   try{
     const res = await fetch(`${API_BASE}/api/comments?bracket=${bracket}`);
     if(!res.ok) throw new Error(`comments ${res.status}`);
@@ -710,7 +711,10 @@ async function openCommentSheet(){
   document.getElementById('comment-overlay').classList.add('show');
 }
 function closeCommentSheet(){
+  clearTimeout(crossPromoAutoCloseTimer);
   document.getElementById('comment-overlay').classList.remove('show');
+  document.getElementById('comment-form-body').style.display = '';
+  document.getElementById('comment-success-body').style.display = 'none';
   const input = document.getElementById('comment-input');
   input.value = '';
   input.classList.remove('blocked');
@@ -805,7 +809,7 @@ async function submitComment(){
     myBubbleText = text;
     document.body.classList.add('commented-today');
     spawnBubble(text);
-    closeCommentSheet();
+    if(CROSSPROMO_LIVE){ showCommentSuccessState(); } else { closeCommentSheet(); }
     haptic('success');
     showToast('코멘트가 등록됐어요');
     maybeRequestReview();
@@ -1007,6 +1011,7 @@ async function loadDongRanking(){
 ============================================================ */
 let currentScreenNum = 1;
 function goToScreen(n){
+  if(n !== 1) closeCrossPromoFloat();
   currentScreenNum = n;
   document.getElementById('screens').className = 'screens at-' + n;
   // 각 .screen은 자체 overflow-y:auto라 스크롤 위치를 따로 기억한다 - 이전에 스크롤해뒀던
@@ -1176,10 +1181,10 @@ async function buildShareUrl(){
 async function shareResult(){
   trackClick({ log_name: 'share_native' });
   haptic('tap');
-  const title = `${currentRegionName} 체감온도 ${fmtTemp(currentFeelsLike)}° · 상위 ${currentRankPercent}%`;
-  const text = `${currentHookCopyLines.join(' ')} ${currentMemeCopy}`;
+  const title = `나 지금 ${currentRegionName} 체감 ${fmtTemp(currentFeelsLike)}° · 전국 상위 ${currentRankPercent}%`;
+  const text = currentHookCopyLines.join(' ');
   const shareUrl = await buildShareUrl();
-  const message = `${title}\n${text}\n${shareUrl}`;
+  const message = `${title}\n${text}\n\n지금 우리 동네는 어떨까? 👇\n${shareUrl}`;
 
   try{
     await withTimeout(tossShare({ message }), 5000);
@@ -1301,12 +1306,73 @@ async function initLocationAndData(){
   // 셋 다 끝날 때까지 기다려야 스켈레톤이 실제 콘텐츠 준비 전에 너무 일찍 사라지지 않는다.
   // allSettled: 하나가 실패해도(예: 동 데이터 없음) 나머지 로딩을 막지 않음 - 각 함수 내부에서 개별 mock 폴백 처리.
   await Promise.allSettled([loadRealWeather(), loadRanking(), loadDongRanking()]);
+  saveDataCache();
+}
+
+/* ============================================================
+   SWR 데이터 캐시 (2026-08-12)
+   - 직전 방문 데이터를 즉시 복원해 첫 화면 응답 체감을 줄인다.
+   - DATA_CACHE_TTL_MS 이내 캐시 → 즉시 렌더 + 백그라운드 갱신.
+   - 캐시 없음 / 만료 → 기존 스켈레톤 로딩 유지.
+============================================================ */
+const DATA_CACHE_KEY = 'heatfeel_cached_data_v1';
+const DATA_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2시간
+
+function saveDataCache(){
+  try{
+    localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({
+      ts: Date.now(),
+      currentFeelsLike, currentActualTemp, currentHumidity,
+      currentRegionName, currentRegionMatchName, currentCityCode,
+      currentMyDongName, currentCoord, isUsingDefaultRegion,
+      currentTotalRegions, currentRankPercent, currentCityRank,
+      currentCityRanking, currentDongRanking,
+      currentNationwideAverageTemp, currentSimilarRegion, currentCoolestRegion,
+      currentUpdatedLabel, currentRankingUpdatedLabel, currentDongUpdatedLabel,
+    }));
+  }catch(err){}
+}
+
+function tryRestoreDataCache(){
+  try{
+    const raw = localStorage.getItem(DATA_CACHE_KEY);
+    if(!raw) return false;
+    const c = JSON.parse(raw);
+    if(!c || typeof c.ts !== 'number') return false;
+    if(Date.now() - c.ts > DATA_CACHE_TTL_MS) return false;
+
+    currentFeelsLike = c.currentFeelsLike ?? currentFeelsLike;
+    currentActualTemp = c.currentActualTemp ?? currentActualTemp;
+    currentHumidity = c.currentHumidity ?? currentHumidity;
+    currentRegionName = c.currentRegionName ?? currentRegionName;
+    currentRegionMatchName = c.currentRegionMatchName ?? currentRegionMatchName;
+    currentCityCode = c.currentCityCode ?? currentCityCode;
+    currentMyDongName = c.currentMyDongName;
+    if(c.currentCoord) currentCoord = c.currentCoord;
+    isUsingDefaultRegion = !!c.isUsingDefaultRegion;
+    currentTotalRegions = c.currentTotalRegions ?? currentTotalRegions;
+    currentRankPercent = c.currentRankPercent ?? currentRankPercent;
+    currentCityRank = c.currentCityRank ?? currentCityRank;
+    if(Array.isArray(c.currentCityRanking)) currentCityRanking = c.currentCityRanking;
+    if(Array.isArray(c.currentDongRanking)) currentDongRanking = c.currentDongRanking;
+    currentNationwideAverageTemp = c.currentNationwideAverageTemp ?? currentNationwideAverageTemp;
+    currentSimilarRegion = c.currentSimilarRegion ?? null;
+    currentCoolestRegion = c.currentCoolestRegion ?? null;
+    if(c.currentUpdatedLabel) currentUpdatedLabel = c.currentUpdatedLabel;
+    if(c.currentRankingUpdatedLabel) currentRankingUpdatedLabel = c.currentRankingUpdatedLabel;
+    if(c.currentDongUpdatedLabel) currentDongUpdatedLabel = c.currentDongUpdatedLabel;
+
+    currentHookCopyLines = getHookCopyLines(currentRegionName, currentFeelsLike);
+    currentMemeCopy = getMemeCopy(currentRegionName, currentFeelsLike);
+    return true;
+  }catch(err){ return false; }
 }
 
 // 위치를 안 쓰기로 한 경우에도 화면은 항상 뜬다 - 이때는 지금 가장 더운 지역을 기본값으로 보여준다
 async function loadDataWithoutLocation(){
   await resolveDefaultRegion();
   await Promise.allSettled([loadRealWeather(), loadRanking(), loadDongRanking()]);
+  saveDataCache();
 }
 
 /* ============================================================
@@ -1341,6 +1407,30 @@ async function setStoredConsent(value){
      그 버전을 Storage에 기록해두고, 그 버전 이하로는 다시 안 뜬다 - 최초 고지 동의 패턴과 동일.
 ============================================================ */
 const CHANGELOG = [
+  {
+    version: '2026-08-12',
+    summary: '앱이 더 빨리 열려요',
+    detail: [
+      '재방문 시 지난번 체감온도 데이터를 즉시 보여준 뒤 새 데이터로 조용히 갱신해요',
+    ],
+  },
+  {
+    version: '2026-08-02',
+    summary: '공유 문구가 더 재밌어졌어요',
+    detail: [
+      '공유하기를 누르면 "나 지금 ○○ 체감 XX°" 형태로 더 공감되는 문구가 나가요',
+      '"너네 동네는?" 링크도 함께 보내져서 친구들도 확인할 수 있어요',
+    ],
+  },
+  {
+    version: '2026-08-01b',
+    summary: '화면이 더 깔끔해졌어요',
+    detail: [
+      '체감온도 바로 아래에서 매일 오전 알림을 켜고 끌 수 있어요',
+      '"비눗방울 타임" 바로가기가 화면 하단 플로팅 배너로 바뀌었어요',
+      '한마디를 남기면 형제 앱 "비눗방울 타임"으로 바로 넘어갈 수 있어요',
+    ],
+  },
   {
     version: '2026-07-28',
     summary: '더 편리하게 다듬었어요',
@@ -1536,6 +1626,7 @@ async function bootWithSkeleton(loaderFn, { locating = false, maxWaitMs = 20000 
     document.body.classList.remove('is-locating');
     stopLocatingMessages();
   }
+  initCrossPromoBanner();
   startAutoRefresh();
 }
 
@@ -1570,6 +1661,19 @@ function onConsentSkip(){
 }
 
 async function startLocationFlow(){
+  // SWR: 신선한 캐시가 있으면 즉시 렌더링 후 백그라운드 갱신 (스켈레톤 없이 바로 보임)
+  if(tryRestoreDataCache()){
+    renderAll();
+    renderSimilarRegion();
+    initCrossPromoBanner();
+    startAutoRefresh();
+    // 동의 상태를 비동기로 확인해 적절한 경로로 백그라운드 갱신
+    getStoredConsent().then(consent => {
+      const bgLoader = consent === 'allowed' ? initLocationAndData : loadDataWithoutLocation;
+      bgLoader().catch(() => {});
+    });
+    return;
+  }
   const consent = await getStoredConsent();
   if(consent === 'allowed'){
     bootWithSkeleton(initLocationAndData, { locating: true });
@@ -1584,20 +1688,108 @@ async function startLocationFlow(){
 // 계정/개인화 기능이 없는 앱이라 지금은 저장만 해두고(향후 어뷰징 방지 등에 활용 가능),
 // 실패해도(구버전 앱, 브라우저 단독 접속 등) 화면 동작에는 영향을 주지 않는다.
 /* ============================================================
-   F8: "무더위 배틀" 크로스 프로모션 배너 (2026-07-17)
-   - 더위배틀 문서(F7)에 예약된 "역방향 배너" 자리. 더위배틀이 아직 개발 중이라
-     실제 앱이 콘솔에 없는 상태 - 딥링크 대상이 존재해야 배너를 켠다.
-   - 더위배틀 출시가 확인되면 이 플래그만 true로 바꾸면 된다.
+   F8: 형제 앱 "비눗방울 타임" 크로스 프로모션 (2026-07-17, 2026-08-01 갱신)
+   - 플로팅 배너(CROSSPROMO_LIVE 플래그, 데이터 로드 후 1.5초 슬라이드업)
+   - 코멘트 제출 후 성공 상태 CTA(Option B, 시트 내부).
+   - 비눗방울 타임(mudeowebubble) 2026-07-28 출시 확인 → true로 설정.
 ============================================================ */
-const HEATBATTLE_LIVE = false;
-function initHeatBattleBanner(){
-  const el = document.getElementById('heatbattle-banner');
-  if(el) el.style.display = HEATBATTLE_LIVE ? 'flex' : 'none';
+const CROSSPROMO_LIVE = true;
+let crossPromoAutoCloseTimer = null;
+let crossPromoFloatTimer = null;
+function initCrossPromoBanner(){
+  if(!CROSSPROMO_LIVE) return;
+  crossPromoFloatTimer = setTimeout(() => {
+    const el = document.getElementById('crosspromo-float');
+    if(el) el.classList.add('show');
+  }, 1500);
 }
-function openHeatBattle(){
-  trackClick({ log_name: 'cross_promo_heatbattle' });
-  // 오늘 확인된 intoss://{appName} 패턴을 형제 앱에도 그대로 적용 (F7 딥링크 근거)
-  location.href = 'intoss://mudeowebattle';
+function closeCrossPromoFloat(){
+  clearTimeout(crossPromoFloatTimer);
+  const el = document.getElementById('crosspromo-float');
+  if(el) el.classList.remove('show');
+}
+function openCrossPromo(){
+  trackClick({ log_name: 'cross_promo_bubbletime' });
+  clearTimeout(crossPromoAutoCloseTimer);
+  closeCrossPromoFloat();
+  closeCommentSheet();
+  location.href = 'intoss://mudeowebubble';
+}
+function showCommentSuccessState(){
+  document.getElementById('comment-form-body').style.display = 'none';
+  document.getElementById('comment-success-body').style.display = '';
+  clearTimeout(crossPromoAutoCloseTimer);
+  crossPromoAutoCloseTimer = setTimeout(() => closeCommentSheet(), 4000);
+}
+
+/* ============================================================
+   F6-4: 기능성 알림 구독 토글 (2026-08-01)
+   - agreementId: 112117 / stdConsentCode: 'STD_52367_112117_PARTNER'
+   - 구독 상태를 Storage + 서버 Blob(push-consent/)에 이중 저장한다.
+   - initPushNotify()가 userKeyPromise를 await한 뒤 mini app 컨텍스트일 때만 토글을 표시.
+============================================================ */
+const PUSH_NOTIFY_KEY = 'heatfeel_push_notify_v2'; // v2: requestNotificationAgreement 기반으로 전환하면서 기존 저장값 초기화
+
+async function getPushNotifyState(){
+  try{ return await withTimeout(Storage.getItem(PUSH_NOTIFY_KEY), 1500); }
+  catch(err){
+    try{ return localStorage.getItem(PUSH_NOTIFY_KEY); }
+    catch(err2){ return null; }
+  }
+}
+async function setPushNotifyState(value){
+  try{ await withTimeout(Storage.setItem(PUSH_NOTIFY_KEY, value), 1500); }
+  catch(err){
+    try{ localStorage.setItem(PUSH_NOTIFY_KEY, value); }
+    catch(err2){}
+  }
+}
+
+async function initPushNotify(){
+  await userKeyPromise;
+  if(!currentUserKey) return; // mini app 밖(브라우저 단독)이면 토글 숨김
+  const state = await getPushNotifyState();
+  const row = document.getElementById('push-notify-row');
+  const btn = document.getElementById('push-notify-toggle');
+  if(!row || !btn) return;
+  row.style.display = 'flex';
+  if(state === 'on') btn.classList.add('on');
+}
+
+function togglePushNotify(){
+  const btn = document.getElementById('push-notify-toggle');
+  if(!btn) return;
+  const isOn = btn.classList.contains('on');
+
+  // 이미 구독 중 → 해지는 토스 앱 설정에서 가능
+  if(isOn){
+    showToast('알림 해제는 토스 앱 설정 › 알림에서 할 수 있어요');
+    return;
+  }
+
+  haptic('IMPACT_MEDIUM');
+  try{
+    const cleanup = requestNotificationAgreement({
+      options: { templateCode: 'mudeowerank-daily' },
+      onEvent: async ({ type }) => {
+        cleanup();
+        if(type === 'newAgreement' || type === 'alreadyAgreed'){
+          btn.classList.add('on');
+          await setPushNotifyState('on');
+          trackClick({ log_name: 'push_notify_on' });
+          if(type === 'newAgreement') showToast('매일 오전 11시에 체감온도 알림을 보내드릴게요');
+        } else {
+          trackClick({ log_name: 'push_notify_rejected' });
+        }
+      },
+      onError: (err) => {
+        cleanup();
+        console.warn('알림 동의 요청 실패:', err);
+      },
+    });
+  }catch(err){
+    console.warn('requestNotificationAgreement 호출 실패(브라우저 환경 등):', err);
+  }
 }
 
 let currentUserKey = null;
@@ -1621,7 +1813,7 @@ const userKeyPromise = initUserKey(); // submitComment()가 제출 직전 대기
 updateCommentButtonNeonState();
 initUpdateNote();
 initSafeArea();
-initHeatBattleBanner();
+initPushNotify();
 trackScreen({ log_name: 'screen_view', screen: currentScreenNum });
 
 // ES 모듈은 top-level 선언이 전역(window)으로 노출되지 않는다.
@@ -1639,9 +1831,11 @@ Object.assign(window, {
   openLocationConsent,
   toggleUpdateNoteExpand,
   dismissUpdateNote,
-  openHeatBattle,
+  openCrossPromo,
+  closeCrossPromoFloat,
   openCommentSheet,
   closeCommentSheet,
   onCommentInput,
   submitComment,
+  togglePushNotify,
 });
