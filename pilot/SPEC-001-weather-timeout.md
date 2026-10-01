@@ -6,7 +6,7 @@
 - 작업 ID: SPEC-001
 - 작성일: 2026-09-30
 - 대상 저장소/브랜치: `v2sion/hwaseong-heatfeel-miniapp` / 구현용 별도 브랜치(master에서 분기)
-- 상태: Ready
+- 상태: Done (방식 A: Claude 단독 기준선 구현, QA 통과)
 
 ## 1. 목표
 `/api/weather`가 OpenWeatherMap 응답 지연 시 무한정 대기하지 않고, 업스트림의 인증·한도 오류가 클라이언트에 그대로 노출되지 않도록 한다.
@@ -49,7 +49,7 @@
 |---|---|---|
 | `api/weather.js` | 수정 | 타임아웃, 상태 코드 정규화 |
 | `scripts/weather.test.mjs` | 신규 | `node:test` 기반 테스트 |
-| `package.json` | 수정 | `scripts`에 `"test": "node --test scripts/"` 한 줄만 추가 |
+| `package.json` | 수정 | `scripts`에 `"test": "node --test scripts/*.test.mjs"` 한 줄만 추가 |
 
 - 구현 힌트 (강제 아님, 스펙과 충돌하면 스펙이 우선):
   - `fetch(url, { signal: AbortSignal.timeout(5000) })`
@@ -75,6 +75,7 @@
 ## 8. 작업 분할 (병렬 작업 시)
 | 태스크 | 담당 | 수정 파일 범위 | 의존 |
 |---|---|---|---|
+| 2026-10-01 | 7절·5절의 `node --test scripts/`가 Node 22.22에서 MODULE_NOT_FOUND로 실패 | `node --test scripts/*.test.mjs`로 정정 | PM(Claude), 구현 중 발견 |
 | T1 | 개발 에이전트 1명 | 위 5절 3개 파일 | - |
 
 > 작은 작업이라 병렬화하지 않는다.
@@ -86,11 +87,13 @@
 - [ ] 개발 완료 보고서 작성
 
 ## 10. 개발 완료 보고서 (개발 에이전트가 작성)
-- 변경 파일 목록:
-- 구현 요약:
-- 실행한 명령과 결과:
-- 스펙과 다르게 한 부분 / 미해결 사항:
+(방식 A: Claude 단독 구현. 방식 B/C 비교용 기준선)
+- 변경 파일 목록: `api/weather.js`(+8/-2), `package.json`(test 스크립트 1줄), `scripts/weather.test.mjs`(신규)
+- 구현 요약: `fetch`에 `AbortSignal.timeout(5000)` 적용, `TimeoutError`/`AbortError`는 504, 업스트림 401/403/429/5xx는 502로 통일, 그 외 4xx는 유지.
+- 실행한 명령과 결과: `npm test` 10개 통과 / 0 실패, `npm run build` 성공.
+- 스펙과 다르게 한 부분 / 미해결 사항: SPEC의 테스트 명령(`node --test scripts/`)이 Node 22에서 동작하지 않아 `scripts/*.test.mjs`로 정정(PM 오류, 11절 참고). 그 외 없음.
 
 ## 11. 질문 / 결정 로그
 | 날짜 | 질문 | 답변 | 결정자 |
 |---|---|---|---|
+| 2026-10-01 | 7절·5절의 `node --test scripts/`가 Node 22.22에서 MODULE_NOT_FOUND로 실패 | `node --test scripts/*.test.mjs`로 정정 | PM(Claude), 구현 중 발견 |

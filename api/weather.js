@@ -22,10 +22,13 @@ export default async function handler(req, res) {
 
   try {
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${useLat}&lon=${useLon}&appid=${apiKey}&units=metric&lang=kr`;
-    const upstream = await fetch(url);
+    const upstream = await fetch(url, { signal: AbortSignal.timeout(5000) });
 
     if (!upstream.ok) {
-      return res.status(upstream.status).json({ error: '기상 데이터 조회에 실패했습니다.' });
+      // 업스트림의 인증·한도·서버 오류는 우리 서버 쪽 문제로 보이지 않도록 502로 통일한다.
+      const s = upstream.status;
+      const status = [401, 403, 429].includes(s) || s >= 500 ? 502 : s;
+      return res.status(status).json({ error: '기상 데이터 조회에 실패했습니다.' });
     }
 
     const data = await upstream.json();
@@ -40,6 +43,9 @@ export default async function handler(req, res) {
       updatedAt: new Date().toISOString(),
     });
   } catch (err) {
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      return res.status(504).json({ error: '기상 서버 응답이 지연되고 있습니다.' });
+    }
     return res.status(502).json({ error: '기상 서버 연결에 실패했습니다.' });
   }
 }
