@@ -37,6 +37,19 @@
 - 모델이 무료 목록에서 사라지면 같은 SPEC으로 다른 무료 모델(목록의 다른 계열)을 선택해 다시 측정한다. 모델이 달라졌다는 사실을 측정표에 기록한다.
 - 유료 키나 크레딧을 연결할 때는 반드시 **월 사용 한도**를 설정한다.
 
+### 자동 실행 스크립트 (`pilot/run-b.sh`)
+```bash
+npm i -g opencode-ai          # 확인 버전: 1.18.34
+export OPENCODE_API_KEY=...    # Zen 키. 저장소·채팅에 넣지 말 것
+pilot/run-b.sh pilot/SPEC-001-weather-timeout.md
+```
+- `origin/master`에서 `pilot/b-SPEC-001` 작업 트리를 만들고, SPEC을 첨부해 `opencode run`으로 구현시킨다.
+- 기본 모델: `opencode/muse-spark-1.3-contributor-free` (OpenCode 1.18.34의 모델 목록에서 확인). 두 번째 인자로 바꿀 수 있다.
+- 결과는 `pilot/results/SPEC-001-B/`에 남는다: 에이전트 출력, 소요 시간, 변경 범위, `npm ci`/`npm test`/`npm run build` 결과.
+- `--auto`로 권한을 자동 승인하므로 **격리된 작업 트리에서만** 실행한다.
+- 클라우드 세션에서는 네트워크 허용 도메인에 `opencode.ai`가 있어야 한다. 차단되면 `agent-stderr.txt`에 `request blocked ... "opencode.ai"`가 남는다.
+- 실행 후 QA는 Claude가 `QA_CHECKLIST.md` 기준으로 별도 수행한다(독립 검증).
+
 ## 비교 설계
 | 방식 | 구성 | 비용 |
 |---|---|---|
